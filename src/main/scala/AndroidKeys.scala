@@ -36,6 +36,10 @@ object AndroidKeys {
   val manifestSchema = SettingKey[String]("manifest-schema")
   val envs = SettingKey[Seq[String]]("envs")
   val preinstalledModules = SettingKey[Seq[ModuleID]]("preinstalled-modules")
+  
+  val androidAppClassesMinJarName = SettingKey[String]("android-app-classes-min-jar-name")
+  val scalaLibraryClassesDexName = SettingKey[String]("scala-library-classes-dex-name")
+  val androidAppClassesDexName = SettingKey[String]("android-app-classes-dex-name")
 
   /** Determined Settings */
   val packageApkName = TaskKey[String]("package-apk-name")
@@ -69,6 +73,10 @@ object AndroidKeys {
   val resourcesApkPath = SettingKey[File]("resources-apk-path")
   val packageApkPath = TaskKey[File]("package-apk-path")
   val useProguard = SettingKey[Boolean]("use-proguard")
+  
+  val androidAppClassesMinJarPath = SettingKey[File]("android-app-classes-min-jar-path")
+  val scalaLibraryClassesDexPath = SettingKey[File]("scala-library-classes-dex-path")
+  val androidAppClassesDexPath = SettingKey[File]("android-app-classes-dex-path")
 
   /** Install Settings */
   val packageConfig = TaskKey[ApkConfig]("package-config",
@@ -115,6 +123,10 @@ object AndroidKeys {
 
   val installDevice = TaskKey[Unit]("install-device")
   val uninstallDevice = TaskKey[Unit]("uninstall-device")
+  
+  // GSoC
+  val devInstallDevice = TaskKey[Unit]("dev-install-device")
+  val devInstallEmulator = TaskKey[Unit]("dev-install-emulator")
 
   val aaptPackage = TaskKey[File]("aapt-package",
     "Package resources and assets.")
@@ -133,7 +145,10 @@ object AndroidKeys {
   val startDevice = TaskKey[Unit]("start-device",
     "Start package on device after installation")
   val startEmulator = TaskKey[Unit]("start-emulator",
-    "Start package on emulator after installation")
+    "Start package on emulator after installation [GSoC]")
+  
+  val devStartDevice = TaskKey[Unit]("dev-start-device", "Start package on device after installation")
+  val devStartEmulator = TaskKey[Unit]("dev-start-emulator", "Start package on emulator after installation")
 
   /** ddm Support tasks */
   val stopBridge = TaskKey[Unit]("stop-bridge",

@@ -1,9 +1,15 @@
+import scala.collection.mutable.ListBuffer
+
 import proguard.{Configuration=>ProGuardConfiguration, ProGuard, ConfigurationParser}
 
 import sbt._
 import Keys._
 import AndroidKeys._
 import AndroidHelpers._
+
+import com.android.dx.io.DexBuffer
+import com.android.dx.merge.DexMerger
+import com.android.dx.merge.CollisionPolicy
 
 import java.io.{File => JFile}
 
@@ -20,7 +26,7 @@ object AndroidInstall {
   private def aaptPackageTask: Project.Initialize[Task[File]] =
   (aaptPath, manifestPath, mainResPath, mainAssetsPath, jarPath, resourcesApkPath, extractApkLibDependencies, streams) map {
     (apPath, manPath, rPath, assetPath, jPath, resApkPath, apklibs, s) =>
-
+	
     val libraryResPathArgs = for (
       lib <- apklibs;
       d <- lib.resDir.toSeq;
@@ -39,10 +45,48 @@ object AndroidInstall {
     resApkPath
   }
 
+  /**
+  * Google Summer of Code
+  *
+  * Merges all the input dex files into the output file
+  */
+  def mergeDex(inputs: Seq[JFile], output: JFile) {
+	println("[Merger_Normal] <= (" + inputs + ") => (" + output + ")")
+	val lb = new ListBuffer[DexBuffer]
+	
+	for (file <- inputs) {
+	  if (file.isFile && file.canRead && file.getName.endsWith(".dex")) {
+		lb += new DexBuffer(file)
+	  }
+	}
+	
+	val dexFiles = lb.toList
+	
+	if (dexFiles.length <= 0) {
+	  return
+	} else if (dexFiles.length == 1) {
+	  val dexThis = dexFiles.head
+	  dexThis.writeTo(output)
+	  return
+	} else {
+	  var dexThis = dexFiles.head
+	  val others = dexFiles.tail
+	  
+	  for (dexOther <- others) {
+		val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.FAIL)
+		dexThis = dexMerger.merge
+	  }
+	  
+	  dexThis.writeTo(output)
+	  return
+	}
+	
+  }
+  
   private def dxTask: Project.Initialize[Task[File]] =
     (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams) map {
     (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams) =>
-
+	
       def dexing(inputs: Seq[JFile], output: JFile) {
         val uptodate = output.exists && inputs.forall(input =>
           input.isDirectory match {
@@ -64,6 +108,7 @@ object AndroidInstall {
           streams.log.debug(dxCmd.mkString(" "))
           streams.log.info("Dexing "+output.getAbsolutePath)
           streams.log.debug(dxCmd !!)
+		  
         } else streams.log.debug("dex file " + output.getAbsolutePath + " uptodate, skipping")
       }
 
@@ -104,7 +149,8 @@ object AndroidInstall {
             try { p.println(permission) } finally { p.close() }
           })
       }
-
+	  
+	  mergeDex(Seq(classesDexPath), classesDexPath)
       classesDexPath
     }
 

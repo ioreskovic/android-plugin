@@ -186,6 +186,9 @@ object AndroidBase {
 
     classesMinJarPath <<= (target, classesMinJarName) (_ / _),
     classesDexPath <<= (target, classesDexName) (_ / _),
+	androidAppClassesMinJarPath <<= (target, androidAppClassesMinJarName) (_ / _),
+	scalaLibraryClassesDexPath <<= (target, scalaLibraryClassesDexName) (_ / _),
+	androidAppClassesDexPath <<= (target, androidAppClassesDexName) (_ / _),
     resourcesApkPath <<= (target, resourcesApkName) (_ / _),
     useProguard := true,
     proguardOptimizations := Seq.empty,
@@ -193,6 +196,8 @@ object AndroidBase {
     jarPath <<= (platformPath, jarName) (_ / _),
     libraryJarPath <<= (jarPath (_ get)),
 
+	//	GSoC
+	//	Ovdje bi se moglo mozda nesto sredit
     proguardOption := "",
     proguardExclude <<= (libraryJarPath, classDirectory, resourceDirectory) map {
         (libPath, classDirectory, resourceDirectory) =>
