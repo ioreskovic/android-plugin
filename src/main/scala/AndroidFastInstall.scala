@@ -18,6 +18,7 @@ import com.android.dx.merge.CollisionPolicy
 object AndroidFastInstall {
   
   // GSoC
+  //
   private def devInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)
   }
