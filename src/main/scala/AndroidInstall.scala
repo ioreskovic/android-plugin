@@ -51,7 +51,7 @@ object AndroidInstall {
   * Merges all the input dex files into the output file
   */
   def mergeDex(inputs: Seq[JFile], output: JFile) {
-	println("[Merger_Normal] <= (" + inputs + ") => (" + output + ")")
+	println("(" + inputs + ") => [MERGER_SLOW] => (" + output + ")")
 	val lb = new ListBuffer[DexBuffer]
 	
 	for (file <- inputs) {
@@ -173,7 +173,7 @@ object AndroidInstall {
                  "-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
                  Nil) ++
                  optimizationOptions ++ (
-                 "-dontwarn" :: "-dontobfuscate" ::
+                 "-dontwarn" :: "-dontobfuscate" :: 
                  "-dontnote scala.Enumeration" ::
                  "-dontnote org.xml.sax.EntityResolver" ::
                  "-keep public class * extends android.app.Activity" ::

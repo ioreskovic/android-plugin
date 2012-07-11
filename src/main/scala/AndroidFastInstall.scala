@@ -1,4 +1,11 @@
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConversions._
+import scala.collection.mutable.{Map => MMap}
+import scala.collection.mutable.{Set => MSet}
+import scala.collection.immutable.HashMap
+import scala.collection.immutable.TreeSet
+import scala.collection.mutable.{HashMap => MHashMap}
+import scala.collection.mutable.{HashSet => MHashSet}
 
 import proguard.{Configuration=>ProGuardConfiguration, ProGuard, ConfigurationParser}
 
@@ -9,16 +16,26 @@ import AndroidHelpers._
 
 import java.io.{File => JFile}
 
-// GSoC 
-// Used in merging .dex files
 import com.android.dx.io.DexBuffer
 import com.android.dx.merge.DexMerger
 import com.android.dx.merge.CollisionPolicy
 
+import org.objectweb.asm.depend.DependencyLister
+
 object AndroidFastInstall {
   
+  val androidAppJar = new JFile("C:/Users/Administrator/gsoc-2012/target/android-app.min.jar")
+  val androidAppDex = new JFile("C:/Users/Administrator/gsoc-2012/target/android-app-classes.dex")
+  val scalaStLibJar = new JFile("C:/Users/Administrator/.sbt/boot/scala-2.9.1/lib/scala-library.jar")
+  val scalaStLibDex = new JFile("C:/Users/Administrator/gsoc-2012/target/scala-library-classes.dex")
+  val classesDex	= new JFile("C:/Users/Administrator/gsoc-2012/target/classes.dex")
+  val classesMinJar	= new JFile("C:/Users/Administrator/gsoc-2012/target/classes.min.jar")
+  val classesPath	= new JFile("C:/Users/Administrator/gsoc-2012/target/scala-2.9.1/classes")
+  
+  var incrementAppOnly = false
+  
+  
   // GSoC
-  //
   private def devInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)
   }
@@ -51,12 +68,86 @@ object AndroidFastInstall {
     if (aapt.run(false).exitValue != 0) sys.error("error packaging resources")
     resApkPath
   }
-
-  /**
-  * Google Summer of Code
   
-  * Checks whether the input files are up to date in regard to the output file.
-  */
+  /**
+   * Google Summer of Code
+   *
+   * Converts java multi map to scala multi map
+   */
+  def asMutableScalaMultiMap(jimap: java.util.Map[java.lang.String, java.util.Set[java.lang.String]]): MMap[String, MSet[String]] = {
+	MMap(
+		jimap.map(kv => (kv._1, MSet(kv._2.toList: _*))).toList: _*
+	)
+  }
+  
+  /**
+   * Google Summer of Code
+   *
+   * Checks if the first dependency multi map is a subset of the second
+   */
+  def isSubset(cDeps: MMap[String, MSet[String]], jDeps: MMap[String, MSet[String]]): Boolean = {
+	for (cKey <- cDeps.keys) {
+		if (!jDeps.keys.contains(cKey)) {
+			return false
+		}
+	}
+
+	for (cKey <- cDeps.keys) {
+		val cSet = cDeps(cKey)
+		val jSet = jDeps(cKey)
+		for (cValue <- cSet) {
+			if (!jSet.contains(cValue)) {
+				return false
+			}
+		}
+	}
+
+	return true
+  }
+  
+  /**
+   * Google Summer of Code
+   *
+   * Merges two TreeSet composite HashMap
+   */
+  def depsUnion(deps1: MMap[String, MSet[String]], deps2: MMap[String, MSet[String]]): MMap[String, MSet[String]] = {
+	// var deps = new MHashMap[String, MHashSet[String]]
+	// deps = deps ++: deps1
+	for (key <- deps2.keys) {
+		var set1 = deps1.getOrElse(key, new MHashSet[String]())
+		var set2 = deps2.getOrElse(key, new MHashSet[String]())
+		set1 ++= set2
+		deps1 += (key -> set1)
+	}
+	
+	return deps1
+  }
+  
+  /**
+   * Goole Summer of Code
+   *
+   * Extracts all the class and method dependencies from a dependency map as string.
+   */
+  def getProGuardKeepArgs(allDeps: MMap[String, MSet[String]]): String = {
+	var sb = new StringBuilder()
+	for ((clazz, methods) <- allDeps) {
+		sb.append("-keep  class " + clazz + " { ")
+		
+		for (method <- methods) {
+			sb.append(" *** " + method + "(...); ")
+		}
+		
+		sb.append("} ")
+	}
+	
+	sb.toString
+  }
+  
+  /**
+   * Google Summer of Code
+   *
+   * Checks whether the input files are up to date in regard to the output file.
+   */
   def isUpToDate(inputs: Seq[JFile], output: JFile): Boolean = {
 	val upToDate = output.exists && inputs.forall(input =>
 	  input.isDirectory match {
@@ -70,12 +161,12 @@ object AndroidFastInstall {
   }
   
   /**
-  * Google Summer of Code
-  *
-  * Merges all the input dex files into the output file
-  */
+   * Google Summer of Code
+   *
+   * Merges all the input dex files into the output file
+   */
   def mergeDex(inputs: Seq[JFile], output: JFile) {
-	println("(" + inputs + ") => [DEX MERGER] => (" + output + ")")
+	println("(" + inputs + ") => [DEX MERGER FAST] => (" + output + ")")
 	val lb = new ListBuffer[DexBuffer]
 	
 	for (file <- inputs) {
@@ -97,7 +188,7 @@ object AndroidFastInstall {
 	  val others = dexFiles.tail
 	  
 	  for (dexOther <- others) {
-		val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.FAIL)
+		val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.KEEP_FIRST)
 		dexThis = dexMerger.merge
 	  }
 	  
@@ -108,8 +199,12 @@ object AndroidFastInstall {
   }
   
   private def dxTask: Project.Initialize[Task[File]] =
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams) map {
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams) =>
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams
+	//, androidAppClassesMinJarPath, androidAppClassesDexPath, scalaLibraryClassesDexPath
+	) map {
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams
+	//, androidAppClassesMinJarPath, androidAppClassesDexPath, scalaLibraryClassesDexPath
+	) =>
 	
 	  //------------------------------------------------------------------------\\
 	  //        Modified Google Summer of Code Android Plugin functions         \\
@@ -117,13 +212,18 @@ object AndroidFastInstall {
 	  
 	  
 	  /**
-	  * Google Summer of Code
-	  
-	  * Performs dexing on the input files, storing the result in the output file.
-	  * Dexing is not executed if all the input files are up to date in regatd to the output file.
-	  */
+	   * Google Summer of Code
+	   *
+	   * Performs dexing on the input files, storing the result in the output file.
+	   * Dexing is not executed if all the input files are up to date in regatd to the output file.
+	   */
 	  def dexing(inputs: Seq[JFile], output: JFile) {
 	    val upToDate = isUpToDate(inputs, output)
+		
+		// println("[GSOC]	[DEXING=UPTODATE]" + upToDate + "[/DEXING]")
+		// println("[GSOC]	[DEXING=INPUTS]" + inputs + "[/DEXING]")
+		// println("[GSOC]	[DEXING=OUTPUT]" + output + "[/DEXING]")
+		// println("")
 		
 		if (!upToDate) {
 		  val noLocals = if (proguardOptimizations.isEmpty) ""
@@ -147,9 +247,31 @@ object AndroidFastInstall {
 		}
 	  }
 	  
+	  println("[DX INPUTS]\n\t" + dxInputs.mkString("\n\t") + "\n\n")
 	  
-	  dexing(dxInputs.get, classesDexPath)
-	  mergeDex(Seq(classesDexPath), classesDexPath)
+	  if (incrementAppOnly) {
+		dexing(Seq(classesPath), androidAppDex)
+		mergeDex(Seq(androidAppDex, classesDexPath), classesDexPath)
+	  } else {
+		dexing(Seq(classesMinJar), classesDexPath)
+	  }
+	  
+	  //dexing(androidAppClassesMinJarPath, androidAppClassesDexPath)
+	  //dexing(proguardInJars, scalaLibraryClassesDexPath)
+	  //mergeDex(Seq(androidAppClassesDexPath, scalaLibraryClassesDexPath), classesDexPath)
+	  
+	  // dexing(Seq(androidAppJar), androidAppDex)
+	  // println("[GSoC] [DEXING=DONE]" + androidAppDex + "[/DEXING]")
+	  
+	  // dexing(Seq(scalaStLibJar), scalaStLibDex)
+	  // println("[GSoC] [DEXING=DONE]" + scalaStLibDex + "[/DEXING]")
+	  
+	  // mergeDex(Seq(androidAppDex, scalaStLibDex), classesDexPath)
+	  // println("[GSoC]	[MERGER]" + classesDexPath + "[/MERGER]")
+	  
+	  //dexing(dxInputs.get, classesDexPath)
+	  //mergeDex(Seq(classesDexPath), classesDexPath)
+	  
 	  
 	  // Sto se tocno nalazi u dxOpts?
 	  
@@ -198,53 +320,92 @@ object AndroidFastInstall {
     }
 	
   /**
-  * Google Summer of Code
-  *
-  * Runs ProGuard on all inputs, storing the result to the output file.
-  */
+   * Google Summer of Code
+   *
+   * Runs ProGuard on all inputs, storing the result to the output file.
+   */
   private def proguardTask: Project.Initialize[Task[Option[File]]] = 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, androidAppClassesMinJarPath, libraryJarPath, manifestPackage, proguardOption) map { (useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, androidAppClassesMinJarPath, libraryJarPath, manifestPackage, proguardOption) =>
+	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) map { (useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) =>
 	  if (useProguard) {
-		val optimizationOptions = if (proguardOptimizations.isEmpty) Seq("-dontoptimize") else proguardOptimizations
-		val manifestr = List("!META-INF/MANIFEST.MF", "R.class", "R$*.class", "TR.class", "TR$.class", "library.properties")
-		val sep = JFile.pathSeparator
-		val inJars = ("\"" + classDirectory.absolutePath + "\"") +: proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
-
-		val args = (
-			"-injars" :: inJars.mkString(sep) ::
-			"-outjars" :: "\""+androidAppClassesMinJarPath.absolutePath+"\"" ::
-			"-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
-			Nil) ++
-			optimizationOptions ++ (
-			"-dontwarn" :: "-dontobfuscate" ::
-			"-dontnote scala.Enumeration" ::
-			"-dontnote org.xml.sax.EntityResolver" ::
-			"-keep public class * extends android.app.Activity" ::
-			"-keep public class * extends android.app.Service" ::
-			"-keep public class * extends android.app.backup.BackupAgent" ::
-			"-keep public class * extends android.appwidget.AppWidgetProvider" ::
-			"-keep public class * extends android.content.BroadcastReceiver" ::
-			"-keep public class * extends android.content.ContentProvider" ::
-			"-keep public class * extends android.view.View" ::
-			"-keep public class * extends android.app.Application" ::
-			"-keep public class "+manifestPackage+".** { public protected *; }" ::
-			"-keep public class * implements junit.framework.Test { public void test*(); }" ::
-			"""
-			 -keepclassmembers class * implements java.io.Serializable {
-			   private static final java.io.ObjectStreamField[] serialPersistentFields;
-			   private void writeObject(java.io.ObjectOutputStream);
-			   private void readObject(java.io.ObjectInputStream);
-			   java.lang.Object writeReplace();
-			   java.lang.Object readResolve();
-			  }
-			  """ ::
-			proguardOption :: Nil )
+	    
+		var keepArgs = "";
+		
+		if (classesMinJar.exists) {
+			var dl = new DependencyLister(classesMinJar.getAbsolutePath)
+			var allDeps = asMutableScalaMultiMap(dl.getClassesMethods)
+			dl = new DependencyLister(classesPath.getAbsolutePath)
+			var deps = asMutableScalaMultiMap(dl.getClassesMethods)
 			
-		val config = new ProGuardConfiguration
-		new ConfigurationParser(args.toArray[String]).parse(config)
-		streams.log.debug("executing proguard: "+args.mkString("\n"))
-		new ProGuard(config).execute
-		Some(androidAppClassesMinJarPath)
+			if (!isSubset(deps, allDeps)) {
+				allDeps = depsUnion(allDeps, deps)
+				keepArgs = getProGuardKeepArgs(allDeps)
+				incrementAppOnly = false
+				streams.log.info("[GSoC] New classes/methods detected. Trying to run ProGuard over entire project")
+			} else {
+				incrementAppOnly = true
+				streams.log.info("[GSoC] No new classes/methods detected. Trying to dex android-app classes only and merge with existing classes.dex")
+			}
+		
+		}
+		
+		if (incrementAppOnly == true) {
+			None
+		} else {
+		
+			streams.log.info("[GSoC] First time build. Trying to run ProGuard over entire project")
+			
+			val optimizationOptions = if (proguardOptimizations.isEmpty) Seq("-dontoptimize") else proguardOptimizations
+			val manifestr = List("!META-INF/MANIFEST.MF", "R.class", "R$*.class", "TR.class", "TR$.class", "library.properties")
+			val sep = JFile.pathSeparator
+			val inJars = ("\"" + classDirectory.absolutePath + "\"") +: proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
+
+			val androidApplicationInput = Seq("\"" + classDirectory.absolutePath + "\"")
+			val scalaLibraryInput = proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
+			
+			println("[GSoC]	[INPUT]" + inJars.mkString(" | ") + "[/INPUT]")
+			println("[GSoC]	[OUTPUT]" + classesMinJarPath.absolutePath + "[/OUTPUT]")
+			println("[GSoC]	[LIBRARY=APP]" + androidApplicationInput + "[/LIBRARY]")
+			println("[GSoC]	[LIBRARY=SCALA]" + scalaLibraryInput + "[/LIBRARY]")
+			println("[GSoC]	[LIBRARY=ANDROID]" + libraryJarPath + "[/LIBRARY]")
+			println("")
+			
+			val args = (
+				//"-injars" :: androidApplicationInput.mkString(sep) ::
+				"-injars" :: inJars.mkString(sep) ::
+				"-outjars" :: "\""+classesMinJarPath.absolutePath+"\"" ::
+				"-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
+				Nil) ++
+				optimizationOptions ++ (
+				"-dontwarn" :: "-dontobfuscate" ::
+				"-dontnote scala.Enumeration" ::
+				"-dontnote org.xml.sax.EntityResolver" ::
+				"-keep public class * extends android.app.Activity" ::
+				"-keep public class * extends android.app.Service" ::
+				"-keep public class * extends android.app.backup.BackupAgent" ::
+				"-keep public class * extends android.appwidget.AppWidgetProvider" ::
+				"-keep public class * extends android.content.BroadcastReceiver" ::
+				"-keep public class * extends android.content.ContentProvider" ::
+				"-keep public class * extends android.view.View" ::
+				"-keep public class * extends android.app.Application" ::
+				"-keep public class "+manifestPackage+".** { public protected *; }" ::
+				"-keep public class * implements junit.framework.Test { public void test*(); }" ::
+				"""
+				 -keepclassmembers class * implements java.io.Serializable {
+				   private static final java.io.ObjectStreamField[] serialPersistentFields;
+				   private void writeObject(java.io.ObjectOutputStream);
+				   private void readObject(java.io.ObjectInputStream);
+				   java.lang.Object writeReplace();
+				   java.lang.Object readResolve();
+				  }
+				  """ :: keepArgs ::
+				proguardOption :: Nil )
+				
+			val config = new ProGuardConfiguration
+			new ConfigurationParser(args.toArray[String]).parse(config)
+			streams.log.debug("executing proguard: "+args.mkString("\n"))
+			new ProGuard(config).execute
+			Some(classesMinJarPath)
+		}
 	} else {
 		streams.log.info("Skipping Proguard")
 		None

@@ -31,17 +31,17 @@ object AndroidLaunch {
   }
 
   lazy val settings: Seq[Setting[_]] =
-    AndroidFastInstall.settings ++
-    AndroidInstall.settings ++
+    //AndroidInstall.settings ++
+	AndroidFastInstall.settings ++
     inConfig(Android) (Seq (
 	  devStartDevice <<= startTask(false),
 	  devStartEmulator <<= startTask(true),
-      startDevice <<= startTask(false),
-      startEmulator <<= startTask(true),
+      //startDevice <<= startTask(false),
+      //startEmulator <<= startTask(true),
 	  
 	  devStartDevice <<= devStartDevice dependsOn devInstallDevice,
-	  devStartEmulator <<= devStartEmulator dependsOn devInstallEmulator,
-      startDevice <<= startDevice dependsOn installDevice,
-      startEmulator <<= startEmulator dependsOn installEmulator
+	  devStartEmulator <<= devStartEmulator dependsOn devInstallEmulator
+      //startDevice <<= startDevice dependsOn installDevice,
+      //startEmulator <<= startEmulator dependsOn installEmulator
     ))
 }
