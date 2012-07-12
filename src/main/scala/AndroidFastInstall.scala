@@ -131,13 +131,13 @@ object AndroidFastInstall {
   def getProGuardKeepArgs(allDeps: MMap[String, MSet[String]]): String = {
 	var sb = new StringBuilder()
 	for ((clazz, methods) <- allDeps) {
-		sb.append("-keep  class " + clazz + " { ")
+		sb.append("-keep class " + clazz + " {\n")
 		
 		for (method <- methods) {
-			sb.append(" *** " + method + "(...); ")
+			sb.append(" *** " + method + "(...);\n")
 		}
 		
-		sb.append("} ")
+		sb.append("}\n\n")
 	}
 	
 	sb.toString
@@ -166,36 +166,37 @@ object AndroidFastInstall {
    * Merges all the input dex files into the output file
    */
   def mergeDex(inputs: Seq[JFile], output: JFile) {
-	println("(" + inputs + ") => [DEX MERGER FAST] => (" + output + ")")
-	val lb = new ListBuffer[DexBuffer]
-	
-	for (file <- inputs) {
-	  if (file.isFile && file.canRead && file.getName.endsWith(".dex")) {
-		lb += new DexBuffer(file)
-	  }
-	}
-	
-	val dexFiles = lb.toList
-	
-	if (dexFiles.length <= 0) {
-	  return
-	} else if (dexFiles.length == 1) {
-	  val dexThis = dexFiles.head
-	  dexThis.writeTo(output)
-	  return
-	} else {
-	  var dexThis = dexFiles.head
-	  val others = dexFiles.tail
-	  
-	  for (dexOther <- others) {
-		val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.KEEP_FIRST)
-		dexThis = dexMerger.merge
-	  }
-	  
-	  dexThis.writeTo(output)
-	  return
-	}
-	
+	if (!isUpToDate(inputs, output)) {
+		println("(" + inputs + ") => [DEX MERGER FAST] => (" + output + ")")
+		val lb = new ListBuffer[DexBuffer]
+		
+		for (file <- inputs) {
+		  if (file.isFile && file.canRead && file.getName.endsWith(".dex")) {
+			lb += new DexBuffer(file)
+		  }
+		}
+		
+		val dexFiles = lb.toList
+		
+		if (dexFiles.length <= 0) {
+		  return
+		} else if (dexFiles.length == 1) {
+		  val dexThis = dexFiles.head
+		  dexThis.writeTo(output)
+		  return
+		} else {
+		  var dexThis = dexFiles.head
+		  val others = dexFiles.tail
+		  
+		  for (dexOther <- others) {
+			val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.KEEP_FIRST)
+			dexThis = dexMerger.merge
+		  }
+		  
+		  dexThis.writeTo(output)
+		  return
+		}
+	}	
   }
   
   private def dxTask: Project.Initialize[Task[File]] =
@@ -219,11 +220,6 @@ object AndroidFastInstall {
 	   */
 	  def dexing(inputs: Seq[JFile], output: JFile) {
 	    val upToDate = isUpToDate(inputs, output)
-		
-		// println("[GSOC]	[DEXING=UPTODATE]" + upToDate + "[/DEXING]")
-		// println("[GSOC]	[DEXING=INPUTS]" + inputs + "[/DEXING]")
-		// println("[GSOC]	[DEXING=OUTPUT]" + output + "[/DEXING]")
-		// println("")
 		
 		if (!upToDate) {
 		  val noLocals = if (proguardOptimizations.isEmpty) ""
@@ -249,7 +245,7 @@ object AndroidFastInstall {
 	  
 	  println("[DX INPUTS]\n\t" + dxInputs.mkString("\n\t") + "\n\n")
 	  
-	  if (incrementAppOnly) {
+	  if (incrementAppOnly == true) {
 		dexing(Seq(classesPath), androidAppDex)
 		mergeDex(Seq(androidAppDex, classesDexPath), classesDexPath)
 	  } else {
@@ -326,9 +322,15 @@ object AndroidFastInstall {
    */
   private def proguardTask: Project.Initialize[Task[Option[File]]] = 
 	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) map { (useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) =>
-	  if (useProguard) {
-	    
-		var keepArgs = "";
+	  // incrementAppOnly = false
+	  var upToDate = isUpToDate(Seq(classesPath), classesDex)
+	  if (androidAppDex.exists) {
+		upToDate = upToDate && isUpToDate(Seq(classesPath), androidAppDex)
+	  }
+	  
+	  var keepArgs = "";
+	  
+	  if (useProguard && !upToDate) {
 		
 		if (classesMinJar.exists) {
 			var dl = new DependencyLister(classesMinJar.getAbsolutePath)
@@ -349,6 +351,7 @@ object AndroidFastInstall {
 		}
 		
 		if (incrementAppOnly == true) {
+			streams.log.info("Skipping Proguard")
 			None
 		} else {
 		
@@ -362,13 +365,6 @@ object AndroidFastInstall {
 			val androidApplicationInput = Seq("\"" + classDirectory.absolutePath + "\"")
 			val scalaLibraryInput = proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
 			
-			println("[GSoC]	[INPUT]" + inJars.mkString(" | ") + "[/INPUT]")
-			println("[GSoC]	[OUTPUT]" + classesMinJarPath.absolutePath + "[/OUTPUT]")
-			println("[GSoC]	[LIBRARY=APP]" + androidApplicationInput + "[/LIBRARY]")
-			println("[GSoC]	[LIBRARY=SCALA]" + scalaLibraryInput + "[/LIBRARY]")
-			println("[GSoC]	[LIBRARY=ANDROID]" + libraryJarPath + "[/LIBRARY]")
-			println("")
-			
 			val args = (
 				//"-injars" :: androidApplicationInput.mkString(sep) ::
 				"-injars" :: inJars.mkString(sep) ::
@@ -376,7 +372,7 @@ object AndroidFastInstall {
 				"-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
 				Nil) ++
 				optimizationOptions ++ (
-				"-dontwarn" :: "-dontobfuscate" ::
+				"-dontwarn" :: "-dontobfuscate" :: "-keeppackagenames **" ::
 				"-dontnote scala.Enumeration" ::
 				"-dontnote org.xml.sax.EntityResolver" ::
 				"-keep public class * extends android.app.Activity" ::
@@ -389,6 +385,8 @@ object AndroidFastInstall {
 				"-keep public class * extends android.app.Application" ::
 				"-keep public class "+manifestPackage+".** { public protected *; }" ::
 				"-keep public class * implements junit.framework.Test { public void test*(); }" ::
+				"-keep class scala.Function1 { *; }" ::
+				"-keep class scala.ScalaObject { *; }" ::
 				"""
 				 -keepclassmembers class * implements java.io.Serializable {
 				   private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -399,7 +397,9 @@ object AndroidFastInstall {
 				  }
 				  """ :: keepArgs ::
 				proguardOption :: Nil )
-				
+			
+			// streams.log.info("executing proguard: "+args.mkString("\n"))
+			// streams.log.info(args(24) + "\n" + args(24))
 			val config = new ProGuardConfiguration
 			new ConfigurationParser(args.toArray[String]).parse(config)
 			streams.log.debug("executing proguard: "+args.mkString("\n"))
