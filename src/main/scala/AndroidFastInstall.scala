@@ -34,7 +34,6 @@ object AndroidFastInstall {
   
   var incrementAppOnly = false
   
-  
   // GSoC
   private def devInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)

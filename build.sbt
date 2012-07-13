@@ -22,8 +22,7 @@ credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 libraryDependencies ++= Seq(
   "com.google.android.tools" % "ddmlib" % "r10",
   "net.sf.proguard" % "proguard-base" % "4.6",
-  "com.google.android.tools" % "dx" % "1.7",
-  "org.clapper" %% "classutil" % "0.4.6"
+  "com.google.android.tools" % "dx" % "1.7"
 )
 
 sbtPlugin := true

@@ -145,7 +145,7 @@ object AndroidKeys {
   val startDevice = TaskKey[Unit]("start-device",
     "Start package on device after installation")
   val startEmulator = TaskKey[Unit]("start-emulator",
-    "Start package on emulator after installation [GSoC]")
+    "Start package on emulator after installation")
   
   val devStartDevice = TaskKey[Unit]("dev-start-device", "Start package on device after installation")
   val devStartEmulator = TaskKey[Unit]("dev-start-emulator", "Start package on emulator after installation")
