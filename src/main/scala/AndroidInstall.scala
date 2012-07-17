@@ -202,7 +202,7 @@ object AndroidInstall {
           new ProGuard(config).execute
           Some(classesMinJarPath)
       } else {
-          streams.log.info("Skipping Proguard")
+          streams.log.info("[android:install-device]	Skipping Proguard")
           None
       }
     }

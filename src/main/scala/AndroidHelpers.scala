@@ -54,6 +54,17 @@ object AndroidHelpers {
               "-n", mPackage+"/"+
               launcherActivity(schema, amPath.head, mPackage))
   }
+  
+  // GSoC - dev clone
+  def devStartTask(emulator: Boolean) =
+    (dbPath, manifestSchema, manifestPackage, manifestPath, streams) map {
+      (dp, schema, mPackage, amPath, s) =>
+      adbTask(dp.absolutePath,
+              emulator, s,
+              "shell", "am", "start", "-a", "android.intent.action.MAIN",
+              "-n", mPackage+"/"+
+              launcherActivity(schema, amPath.head, mPackage))
+  }
 
   def launcherActivity(schema: String, amPath: File, mPackage: String) = {
     val launcher = for (

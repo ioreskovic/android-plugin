@@ -37,6 +37,7 @@ object AndroidKeys {
   val envs = SettingKey[Seq[String]]("envs")
   val preinstalledModules = SettingKey[Seq[ModuleID]]("preinstalled-modules")
   
+  /** Google Summer of Code - Added Default Settings (1st and 2nd not needed) */
   val androidAppClassesMinJarName = SettingKey[String]("android-app-classes-min-jar-name")
   val scalaLibraryClassesDexName = SettingKey[String]("scala-library-classes-dex-name")
   val androidAppClassesDexName = SettingKey[String]("android-app-classes-dex-name")
@@ -74,6 +75,7 @@ object AndroidKeys {
   val packageApkPath = TaskKey[File]("package-apk-path")
   val useProguard = SettingKey[Boolean]("use-proguard")
   
+  /** Google Summer of Code - Added Base Settings (1st and 2nd not needed) */
   val androidAppClassesMinJarPath = SettingKey[File]("android-app-classes-min-jar-path")
   val scalaLibraryClassesDexPath = SettingKey[File]("scala-library-classes-dex-path")
   val androidAppClassesDexPath = SettingKey[File]("android-app-classes-dex-path")
@@ -124,15 +126,49 @@ object AndroidKeys {
   val installDevice = TaskKey[Unit]("install-device")
   val uninstallDevice = TaskKey[Unit]("uninstall-device")
   
-  // GSoC
+  /** 
+   * Google Summer of Code
+   *
+   * New TaskKeys:
+   *	android:dev-install-device
+   *	android:dev-install-emulator
+   *
+   * Don't know if these are needed because they perform simple uninstallation from phone
+   *	android:dev-uninstall-device
+   *	android:dev-uninstall-emulator
+   */
   val devInstallDevice = TaskKey[Unit]("dev-install-device")
   val devInstallEmulator = TaskKey[Unit]("dev-install-emulator")
+  
+  /**
+   * Google Summer of Code
+   *
+   * Composite keys used in AndroidFastInstall
+   *
+   * Keys:
+   *
+   *   dev-dx-settings
+   *   |-- androidAppClassesDexPath
+   *   `-- classesMinJarPath
+   *
+   *   dev-pg-settings
+   *   |-- classesDexPath
+   *   |-- androidAppClassesDexPath
+   *   `-- classesMinJarPath
+   */
+  val devDxSettings = SettingKey[Seq[File]]("dev-dx-settings", "Dexer settings for GSoC project")
+  val devPgSettings = SettingKey[Seq[File]]("dev-pg-settings", "ProGuard settings for GSoC project")
 
   val aaptPackage = TaskKey[File]("aapt-package",
     "Package resources and assets.")
   val packageDebug = TaskKey[File]("package-debug",
     "Package and sign with a debug key.")
   val packageRelease = TaskKey[File]("package-release", "Package without signing.")
+  
+  // GSoC
+  val devPackageDebug = TaskKey[File]("dev-package-debug", "Package and sign with a debug key.")
+  val devPackageRelease = TaskKey[File]("dev-package-release", "Package without signing.")
+  
   val cleanApk = TaskKey[Unit]("clean-apk", "Remove apk package")
 
   val proguard = TaskKey[Option[File]]("proguard", "Optimize class files.")
@@ -147,6 +183,13 @@ object AndroidKeys {
   val startEmulator = TaskKey[Unit]("start-emulator",
     "Start package on emulator after installation")
   
+  /** 
+   * Google Summer of Code
+   *
+   * New TaskKeys:
+   *	android:dev-start-device
+   *	android:dev-start-emulator
+   */
   val devStartDevice = TaskKey[Unit]("dev-start-device", "Start package on device after installation")
   val devStartEmulator = TaskKey[Unit]("dev-start-emulator", "Start package on emulator after installation")
 

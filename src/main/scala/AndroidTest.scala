@@ -68,7 +68,7 @@ object AndroidTest {
   lazy val settings: Seq[Setting[_]] =
     AndroidBase.settings ++
     AndroidInstall.settings ++
-	AndroidFastInstall.settings ++
+	AndroidFastInstall.devSettings ++
     inConfig(Android) (Seq (
       testRunner   <<= detectTestRunnerTask,
       testEmulator <<= instrumentationTestAction(true),

@@ -184,20 +184,35 @@ object AndroidBase {
 
     managedSourceDirectories in Compile <<= (managedJavaPath, managedScalaPath) (Seq(_, _)),
 
+	// GSoC - dev clone
     classesMinJarPath <<= (target, classesMinJarName) (_ / _),
     classesDexPath <<= (target, classesDexName) (_ / _),
 	androidAppClassesMinJarPath <<= (target, androidAppClassesMinJarName) (_ / _),
 	scalaLibraryClassesDexPath <<= (target, scalaLibraryClassesDexName) (_ / _),
 	androidAppClassesDexPath <<= (target, androidAppClassesDexName) (_ / _),
+	
     resourcesApkPath <<= (target, resourcesApkName) (_ / _),
     useProguard := true,
     proguardOptimizations := Seq.empty,
 
     jarPath <<= (platformPath, jarName) (_ / _),
     libraryJarPath <<= (jarPath (_ get)),
+	
+	/**
+	 * Google Summer of Code
+	 *
+	 * Constructing new, composite settings to use in dxTask and proguardTask
+	 */
+	devDxSettings <<=	(androidAppClassesDexPath, classesMinJarPath) apply {
+						(androidAppClassesDexPath, classesMinJarPath) =>
+		Seq(androidAppClassesDexPath, classesMinJarPath)
+	},
+	
+	devPgSettings <<=	(androidAppClassesDexPath, classesMinJarPath, classesDexPath) apply {
+						(androidAppClassesDexPath, classesMinJarPath, classesDexPath) =>
+		Seq(androidAppClassesDexPath, classesMinJarPath, classesDexPath)
+	},
 
-	//	GSoC
-	//	Ovdje bi se moglo mozda nesto sredit
     proguardOption := "",
     proguardExclude <<= (libraryJarPath, classDirectory, resourceDirectory) map {
         (libPath, classDirectory, resourceDirectory) =>

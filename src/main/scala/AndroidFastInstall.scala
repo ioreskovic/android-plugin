@@ -24,17 +24,8 @@ import org.objectweb.asm.depend.DependencyLister
 
 object AndroidFastInstall {
   
-  val androidAppJar = new JFile("C:/Users/Administrator/gsoc-2012/target/android-app.min.jar")
-  val androidAppDex = new JFile("C:/Users/Administrator/gsoc-2012/target/android-app-classes.dex")
-  val scalaStLibJar = new JFile("C:/Users/Administrator/.sbt/boot/scala-2.9.1/lib/scala-library.jar")
-  val scalaStLibDex = new JFile("C:/Users/Administrator/gsoc-2012/target/scala-library-classes.dex")
-  val classesDex	= new JFile("C:/Users/Administrator/gsoc-2012/target/classes.dex")
-  val classesMinJar	= new JFile("C:/Users/Administrator/gsoc-2012/target/classes.min.jar")
-  val classesPath	= new JFile("C:/Users/Administrator/gsoc-2012/target/scala-2.9.1/classes")
-  
   var incrementAppOnly = false
   
-  // GSoC
   private def devInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)
   }
@@ -47,14 +38,12 @@ object AndroidFastInstall {
   (aaptPath, manifestPath, mainResPath, mainAssetsPath, jarPath, resourcesApkPath, extractApkLibDependencies, streams) map {
     (apPath, manPath, rPath, assetPath, jPath, resApkPath, apklibs, s) =>
 
-	// GSoC - NE DIRAJ
     val libraryResPathArgs = for (
       lib <- apklibs;
       d <- lib.resDir.toSeq;
       arg <- Seq("-S", d.absolutePath)
     ) yield arg
 
-	//	GSoC - NE DIRAJ
     val aapt = Seq(apPath.absolutePath, "package", "--auto-add-overlay", "-f",
         "-M", manPath.head.absolutePath,
         "-S", rPath.absolutePath,
@@ -110,8 +99,6 @@ object AndroidFastInstall {
    * Merges two TreeSet composite HashMap
    */
   def depsUnion(deps1: MMap[String, MSet[String]], deps2: MMap[String, MSet[String]]): MMap[String, MSet[String]] = {
-	// var deps = new MHashMap[String, MHashSet[String]]
-	// deps = deps ++: deps1
 	for (key <- deps2.keys) {
 		var set1 = deps1.getOrElse(key, new MHashSet[String]())
 		var set2 = deps2.getOrElse(key, new MHashSet[String]())
@@ -199,17 +186,12 @@ object AndroidFastInstall {
   }
   
   private def dxTask: Project.Initialize[Task[File]] =
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams
-	//, androidAppClassesMinJarPath, androidAppClassesDexPath, scalaLibraryClassesDexPath
-	) map {
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams
-	//, androidAppClassesMinJarPath, androidAppClassesDexPath, scalaLibraryClassesDexPath
-	) =>
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings /* , classesMinJarPath */ ) map {
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings /* , classesMinJarPath */ ) =>
 	
 	  //------------------------------------------------------------------------\\
 	  //        Modified Google Summer of Code Android Plugin functions         \\
 	  //------------------------------------------------------------------------\\
-	  
 	  
 	  /**
 	   * Google Summer of Code
@@ -244,72 +226,15 @@ object AndroidFastInstall {
 	  
 	  println("[DX INPUTS]\n\t" + dxInputs.mkString("\n\t") + "\n\n")
 	  
+	  val appDexPath = devDxSettings(0)
+	  val clsJarPath = devDxSettings(1)
+	  
 	  if (incrementAppOnly == true) {
-		dexing(Seq(classesPath), androidAppDex)
-		mergeDex(Seq(androidAppDex, classesDexPath), classesDexPath)
+		dexing(Seq(classDirectory), appDexPath)
+		mergeDex(Seq(appDexPath, classesDexPath), classesDexPath)
 	  } else {
-		dexing(Seq(classesMinJar), classesDexPath)
+		dexing(Seq(clsJarPath), classesDexPath)								// classesMinJar -> classesMinJarPath
 	  }
-	  
-	  //dexing(androidAppClassesMinJarPath, androidAppClassesDexPath)
-	  //dexing(proguardInJars, scalaLibraryClassesDexPath)
-	  //mergeDex(Seq(androidAppClassesDexPath, scalaLibraryClassesDexPath), classesDexPath)
-	  
-	  // dexing(Seq(androidAppJar), androidAppDex)
-	  // println("[GSoC] [DEXING=DONE]" + androidAppDex + "[/DEXING]")
-	  
-	  // dexing(Seq(scalaStLibJar), scalaStLibDex)
-	  // println("[GSoC] [DEXING=DONE]" + scalaStLibDex + "[/DEXING]")
-	  
-	  // mergeDex(Seq(androidAppDex, scalaStLibDex), classesDexPath)
-	  // println("[GSoC]	[MERGER]" + classesDexPath + "[/MERGER]")
-	  
-	  //dexing(dxInputs.get, classesDexPath)
-	  //mergeDex(Seq(classesDexPath), classesDexPath)
-	  
-	  
-	  // Sto se tocno nalazi u dxOpts?
-	  
-      // Option[Seq[String]]
-      // - None standard dexing for prodaction stage
-      // - Some(Seq(predex_library_regexp)) predex only changed libraries for development stage
-	  
-	  //streams.log.info(dxOpts)
-	  
-      // dxOpts._2 match {
-        // case None =>
-          // dexing(dxInputs.get, classesDexPath)
-        // case Some(predex) =>
-          // val (dexFiles, predexFiles) = predex match {
-            // case exceptSeq: Seq[_] if exceptSeq.nonEmpty =>
-              // val (filtered, orig) = dxInputs.get.partition(file =>
-              // exceptSeq.exists(filter => {
-                // streams.log.debug("apply filter \"" + filter + "\" to \"" + file.getAbsolutePath + "\"")
-                // file.getAbsolutePath.matches(filter)
-              // }))
-              // // dex only classes directory ++ filtered, predex all other
-              // ((classDirectory --- scalaInstance.libraryJar).get ++ filtered, orig)
-            // case _ =>
-              // // dex only classes directory, predex all other
-              // ((classDirectory --- scalaInstance.libraryJar).get, (dxInputs --- classDirectory).get)
-          // }
-          // dexFiles.foreach(s => streams.log.debug("pack in dex \"" + s.getName + "\""))
-          // predexFiles.foreach(s => streams.log.debug("pack in predex \"" + s.getName + "\""))
-          // // dex
-          // dexing(dexFiles, classesDexPath)
-          // // predex
-          // predexFiles.get.foreach(f => {
-            // val predexPath = new JFile(classesDexPath.getParent, "predex")
-            // if (!predexPath.exists)
-              // predexPath.mkdir
-            // val output = new File(predexPath, f.getName)
-            // val outputPermissionDescriptor = new File(predexPath, f.getName.replaceFirst(".jar$", ".xml"))
-            // dexing(Seq(f), output)
-            // val permission = <permissions><library name={ f.getName.replaceFirst(".jar$", "") } file={ "/data/" + f.getName } /></permissions>
-            // val p = new java.io.PrintWriter(outputPermissionDescriptor)
-            // try { p.println(permission) } finally { p.close() }
-          // })
-      // }
 
       classesDexPath
     }
@@ -320,21 +245,26 @@ object AndroidFastInstall {
    * Runs ProGuard on all inputs, storing the result to the output file.
    */
   private def proguardTask: Project.Initialize[Task[Option[File]]] = 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) map { (useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, classesMinJarPath, libraryJarPath, manifestPackage, proguardOption) =>
-	  // incrementAppOnly = false
-	  var upToDate = isUpToDate(Seq(classesPath), classesDex)
-	  if (androidAppDex.exists) {
-		upToDate = upToDate && isUpToDate(Seq(classesPath), androidAppDex)
+	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, /* classesMinJarPath, */ libraryJarPath, manifestPackage, proguardOption, devPgSettings) map { 
+	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, /* classesMinJarPath, */ libraryJarPath, manifestPackage, proguardOption, devPgSettings) =>
+
+	  val appDexPath = devPgSettings(0)
+	  val clsJarPath = devPgSettings(1)
+	  val clsDexPath = devPgSettings(2)
+	  
+	  var upToDate = isUpToDate(Seq(classDirectory), clsDexPath)				// classesDex -> classesDexPath ali sa nekim modifikacijama
+	  if (appDexPath.exists) {											// androidAppClassesDexPath -> JFile
+		upToDate = upToDate && isUpToDate(Seq(classDirectory), appDexPath)	// androidAppClassesDexPath -> JFile
 	  }
 	  
 	  var keepArgs = "";
 	  
 	  if (useProguard && !upToDate) {
 		
-		if (classesMinJar.exists) {
-			var dl = new DependencyLister(classesMinJar.getAbsolutePath)
+		if (clsJarPath.exists) {
+			var dl = new DependencyLister(clsJarPath.absolutePath)
 			var allDeps = asMutableScalaMultiMap(dl.getClassesMethods)
-			dl = new DependencyLister(classesPath.getAbsolutePath)
+			dl = new DependencyLister(classDirectory.absolutePath)
 			var deps = asMutableScalaMultiMap(dl.getClassesMethods)
 			
 			if (!isSubset(deps, allDeps)) {
@@ -350,7 +280,7 @@ object AndroidFastInstall {
 		}
 		
 		if (incrementAppOnly == true) {
-			streams.log.info("Skipping Proguard")
+			streams.log.info("]Android:dev-install-device]	Skipping Proguard")
 			None
 		} else {
 		
@@ -365,9 +295,8 @@ object AndroidFastInstall {
 			val scalaLibraryInput = proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
 			
 			val args = (
-				//"-injars" :: androidApplicationInput.mkString(sep) ::
 				"-injars" :: inJars.mkString(sep) ::
-				"-outjars" :: "\""+classesMinJarPath.absolutePath+"\"" ::
+				"-outjars" :: "\""+clsJarPath.absolutePath+"\"" ::
 				"-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
 				Nil) ++
 				optimizationOptions ++ (
@@ -397,39 +326,31 @@ object AndroidFastInstall {
 				  """ :: keepArgs ::
 				proguardOption :: Nil )
 			
-			// streams.log.info("executing proguard: "+args.mkString("\n"))
-			// streams.log.info(args(24) + "\n" + args(24))
 			val config = new ProGuardConfiguration
 			new ConfigurationParser(args.toArray[String]).parse(config)
 			streams.log.debug("executing proguard: "+args.mkString("\n"))
 			new ProGuard(config).execute
-			Some(classesMinJarPath)
+			Some(clsJarPath)
 		}
 	} else {
-		streams.log.info("Skipping Proguard")
+		streams.log.info("[android:dev-install-device]	Skipping Proguard")
 		None
 	}
   }
 
-  // GSoC
-  // Mislim da ne treba nista mijenjati
-  private def packageTask(debug: Boolean):Project.Initialize[Task[File]] = (packageConfig, streams) map { (c, s) =>
+  private def devPackageTask(debug: Boolean):Project.Initialize[Task[File]] = (packageConfig, streams) map { (c, s) =>
     val builder = new ApkBuilder(c, debug)
     builder.build.fold(sys.error(_), s.log.info(_))
     s.log.debug(builder.outputStream.toString)
     c.packageApkPath
   }
   
-  // GSoC - DONE
-  // Replace installEmulator and installDevice with devInstallEmulator and devInstallDevice
-  lazy val installerTasks = Seq (
-    devInstallDevice <<= devInstallTask(emulator = false) dependsOn packageDebug,
-	devInstallEmulator <<= devInstallTask(emulator = true) dependsOn packageDebug
+  lazy val devInstallerTasks = Seq (
+    devInstallDevice <<= devInstallTask(emulator = false) dependsOn devPackageDebug,
+	devInstallEmulator <<= devInstallTask(emulator = true) dependsOn devPackageDebug
   )
 
-  // GSoC
-  // Tu mozda nesto?
-  lazy val settings: Seq[Setting[_]] = inConfig(Android) (installerTasks ++ Seq (
+  lazy val devSettings: Seq[Setting[_]] = inConfig(Android) (devInstallerTasks ++ Seq (
     uninstallEmulator <<= uninstallTask(emulator = true),
     uninstallDevice <<= uninstallTask(emulator = false),
 
@@ -448,21 +369,17 @@ object AndroidFastInstall {
 
     cleanApk <<= (packageApkPath) map (IO.delete(_)),
 
-	// GSoC
-	// Je li ovo problem?
     proguard <<= proguardTask,
     proguard <<= proguard dependsOn (compile in Compile),
 
-	// GSoC
-	// Mislim da odavde ide pakiranje aplikacije
     packageConfig <<=
       (toolsPath, packageApkPath, resourcesApkPath, classesDexPath,
        nativeLibrariesPath, managedNativePath, dxInputs, resourceDirectory) map
       (ApkConfig(_, _, _, _, _, _, _, _)),
 
-    packageDebug <<= packageTask(true),
-    packageRelease <<= packageTask(false)
-  ) ++ Seq(packageDebug, packageRelease).map {
+    devPackageDebug <<= devPackageTask(true),
+    devPackageRelease <<= devPackageTask(false)
+  ) ++ Seq(devPackageDebug, devPackageRelease).map {
     t => t <<= t dependsOn (cleanApk, aaptPackage, copyNativeLibraries)
   })
 }
