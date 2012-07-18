@@ -14,7 +14,7 @@ import Keys._
 import AndroidKeys._
 import AndroidHelpers._
 
-import java.io.{File => JFile}
+import java.io.{ File => JFile }
 
 import com.android.dx.io.DexBuffer
 import com.android.dx.merge.DexMerger
@@ -30,7 +30,7 @@ object AndroidFastInstall {
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)
   }
 
-  private def uninstallTask(emulator: Boolean) = (dbPath, manifestPackage, streams) map { (dp, m, s) =>
+  private def devUninstallTask(emulator: Boolean) = (dbPath, manifestPackage, streams) map { (dp, m, s) =>
     adbTask(dp.absolutePath, emulator, s, "uninstall", m)
   }
 
@@ -186,8 +186,8 @@ object AndroidFastInstall {
   }
   
   private def dxTask: Project.Initialize[Task[File]] =
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings /* , classesMinJarPath */ ) map {
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings /* , classesMinJarPath */ ) =>
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
+    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
 	
 	  //------------------------------------------------------------------------\\
 	  //        Modified Google Summer of Code Android Plugin functions         \\
@@ -233,7 +233,44 @@ object AndroidFastInstall {
 		dexing(Seq(classDirectory), appDexPath)
 		mergeDex(Seq(appDexPath, classesDexPath), classesDexPath)
 	  } else {
-		dexing(Seq(clsJarPath), classesDexPath)								// classesMinJar -> classesMinJarPath
+		// dexing(Seq(clsJarPath), classesDexPath)
+		// dexing(filesToFinder(dxInputs).get, classesDexPath)
+		
+		dxOpts._2 match {
+        case None =>
+          dexing(filesToFinder(dxInputs).get, classesDexPath)
+        case Some(predex) =>
+          val (dexFiles, predexFiles) = predex match {
+            case exceptSeq: Seq[_] if exceptSeq.nonEmpty =>
+              val (filtered, orig) = filesToFinder(dxInputs).get.partition(file =>
+              exceptSeq.exists(filter => {
+                streams.log.debug("apply filter \"" + filter + "\" to \"" + file.getAbsolutePath + "\"")
+                file.getAbsolutePath.matches(filter)
+              }))
+              // dex only classes directory ++ filtered, predex all other
+              (((classDirectory --- scalaInstance.libraryJar).get ++ filtered), orig)
+            case _ =>
+              // dex only classes directory, predex all other
+              ((classDirectory --- scalaInstance.libraryJar).get, (dxInputs --- classDirectory).get)
+          }
+          dexFiles.foreach(s => streams.log.debug("pack in dex \"" + s.getName + "\""))
+          predexFiles.foreach(s => streams.log.debug("pack in predex \"" + s.getName + "\""))
+          // dex
+          dexing(dexFiles, classesDexPath)
+          // predex
+          filesToFinder(predexFiles).get.foreach(f => {
+            val predexPath = new JFile(classesDexPath.getParent, "predex")
+            if (!predexPath.exists)
+              predexPath.mkdir
+            val output = new File(predexPath, f.getName)
+            val outputPermissionDescriptor = new File(predexPath, f.getName.replaceFirst(".jar$", ".xml"))
+            dexing(Seq(f), output)
+            val permission = <permissions><library name={ f.getName.replaceFirst(".jar$", "") } file={ "/data/" + f.getName } /></permissions>
+            val p = new java.io.PrintWriter(outputPermissionDescriptor)
+            try { p.println(permission) } finally { p.close() }
+          })
+		}
+		
 	  }
 
       classesDexPath
@@ -245,16 +282,16 @@ object AndroidFastInstall {
    * Runs ProGuard on all inputs, storing the result to the output file.
    */
   private def proguardTask: Project.Initialize[Task[Option[File]]] = 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, /* classesMinJarPath, */ libraryJarPath, manifestPackage, proguardOption, devPgSettings) map { 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, /* classesMinJarPath, */ libraryJarPath, manifestPackage, proguardOption, devPgSettings) =>
+	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) map { 
+	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) =>
 
 	  val appDexPath = devPgSettings(0)
 	  val clsJarPath = devPgSettings(1)
 	  val clsDexPath = devPgSettings(2)
 	  
-	  var upToDate = isUpToDate(Seq(classDirectory), clsDexPath)				// classesDex -> classesDexPath ali sa nekim modifikacijama
-	  if (appDexPath.exists) {											// androidAppClassesDexPath -> JFile
-		upToDate = upToDate && isUpToDate(Seq(classDirectory), appDexPath)	// androidAppClassesDexPath -> JFile
+	  var upToDate = isUpToDate(Seq(classDirectory), clsDexPath)
+	  if (appDexPath.exists) {
+		upToDate = upToDate && isUpToDate(Seq(classDirectory), appDexPath)
 	  }
 	  
 	  var keepArgs = "";
@@ -284,7 +321,9 @@ object AndroidFastInstall {
 			None
 		} else {
 		
-			streams.log.info("[GSoC] First time build. Trying to run ProGuard over entire project")
+			if (!clsDexPath.exists) {
+				streams.log.info("[GSoC] First time build. Trying to run ProGuard over entire project")
+			}
 			
 			val optimizationOptions = if (proguardOptimizations.isEmpty) Seq("-dontoptimize") else proguardOptimizations
 			val manifestr = List("!META-INF/MANIFEST.MF", "R.class", "R$*.class", "TR.class", "TR$.class", "library.properties")
@@ -351,8 +390,8 @@ object AndroidFastInstall {
   )
 
   lazy val devSettings: Seq[Setting[_]] = inConfig(Android) (devInstallerTasks ++ Seq (
-    uninstallEmulator <<= uninstallTask(emulator = true),
-    uninstallDevice <<= uninstallTask(emulator = false),
+    uninstallEmulator <<= devUninstallTask(emulator = true),
+    uninstallDevice <<= devUninstallTask(emulator = false),
 
     makeAssetPath <<= directory(mainAssetsPath),
 

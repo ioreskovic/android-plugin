@@ -45,14 +45,6 @@ object AndroidLaunch {
    * Iz nekog razloga kada su oba ukljucena, zadnji prekriva sve ostale
    */
   lazy val settings: Seq[Setting[_]] =
-    // AndroidFastInstall.settings ++
-    // inConfig(Android) (Seq (
-	  // devStartDevice <<= devStartTask(false),
-	  // devStartEmulator <<= devStartTask(true),
-	  
-	  // devStartDevice <<= devStartDevice dependsOn devInstallDevice,
-	  // devStartEmulator <<= devStartEmulator dependsOn devInstallEmulator
-    // ))++
     AndroidInstall.settings ++
 	inConfig(Android) (Seq (
       startDevice <<= startTask(false),
@@ -63,14 +55,6 @@ object AndroidLaunch {
     ))
   
   lazy val devSettings: Seq[Setting[_]] =
-    // AndroidInstall.settings ++
-	// inConfig(Android) (Seq (
-      // startDevice <<= startTask(false),
-      // startEmulator <<= startTask(true),
-	  
-      // startDevice <<= startDevice dependsOn installDevice,
-      // startEmulator <<= startEmulator dependsOn installEmulator
-    // ))++
     AndroidFastInstall.devSettings ++
     inConfig(Android) (Seq (
 	  devStartDevice <<= devStartTask(false),

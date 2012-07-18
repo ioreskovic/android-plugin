@@ -44,44 +44,6 @@ object AndroidInstall {
     if (aapt.run(false).exitValue != 0) sys.error("error packaging resources")
     resApkPath
   }
-
-  /**
-  * Google Summer of Code
-  *
-  * Merges all the input dex files into the output file
-  */
-  def mergeDex(inputs: Seq[JFile], output: JFile) {
-	println("(" + inputs + ") => [MERGER_SLOW] => (" + output + ")")
-	val lb = new ListBuffer[DexBuffer]
-	
-	for (file <- inputs) {
-	  if (file.isFile && file.canRead && file.getName.endsWith(".dex")) {
-		lb += new DexBuffer(file)
-	  }
-	}
-	
-	val dexFiles = lb.toList
-	
-	if (dexFiles.length <= 0) {
-	  return
-	} else if (dexFiles.length == 1) {
-	  val dexThis = dexFiles.head
-	  dexThis.writeTo(output)
-	  return
-	} else {
-	  var dexThis = dexFiles.head
-	  val others = dexFiles.tail
-	  
-	  for (dexOther <- others) {
-		val dexMerger = new DexMerger(dexThis, dexOther, CollisionPolicy.FAIL)
-		dexThis = dexMerger.merge
-	  }
-	  
-	  dexThis.writeTo(output)
-	  return
-	}
-	
-  }
   
   private def dxTask: Project.Initialize[Task[File]] =
     (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams) map {
@@ -150,7 +112,7 @@ object AndroidInstall {
           })
       }
 	  
-	  mergeDex(Seq(classesDexPath), classesDexPath)
+	  streams.log.info("AndroidInstall")
       classesDexPath
     }
 

@@ -8,18 +8,11 @@ import complete.DefaultParsers._
 
 object AndroidProject extends Plugin {
 
-  // GSoC - clone dev
-  val emulatorStart = InputKey[Unit]("emulator-start",
-    "Launches a user specified avd")
-  // GSoC - clone dev
-  val emulatorStop = TaskKey[Unit]("emulator-stop",
-    "Kills the running emulator.")
-  val listDevices = TaskKey[Unit]("list-devices",
-    "List devices from the adb server.")
-  val killAdb = TaskKey[Unit]("kill-server",
-    "Kill the adb server if it is running.")
+  val emulatorStart = InputKey[Unit]("emulator-start", "Launches a user specified avd")
+  val emulatorStop = TaskKey[Unit]("emulator-stop", "Kills the running emulator.")
+  val listDevices = TaskKey[Unit]("list-devices", "List devices from the adb server.")
+  val killAdb = TaskKey[Unit]("kill-server", "Kill the adb server if it is running.")
 
-  // GSoC - clone dev
   private def emulatorStartTask = (parsedTask: TaskKey[String]) =>
     (parsedTask, toolsPath) map { (avd, toolsPath) =>
       "%s/emulator -avd %s".format(toolsPath, avd).run
@@ -34,7 +27,6 @@ object AndroidProject extends Plugin {
     _ +" kill-server" !
   }
 
-  // GSoC - clone dev
   private def emulatorStopTask = (dbPath, streams) map { (dbPath, s) =>
     s.log.info("Stopping emulators")
     val serial = "%s -e get-serialno".format(dbPath).!!
@@ -63,18 +55,14 @@ object AndroidProject extends Plugin {
     AndroidPath.settings ++ inConfig(Android) (Seq (
       listDevices <<= listDevicesTask,
       killAdb <<= killAdbTask,
-	  // GSoC - clone dev
       emulatorStart <<= InputTask((sdkPath)(installedAvds(_)))(emulatorStartTask),
-	  // GSoC - clone dev
       emulatorStop <<= emulatorStopTask
     )) ++ Seq (
       listDevices <<= (listDevices in Android)
     ) ++ Seq (
       listDevices,
       listDevices in Android,
-	  // GSoC - clone dev
       emulatorStart in Android,
-	  // GSoC - clone dev
       emulatorStop in Android
     ).map {
       aggregate in _ := false
