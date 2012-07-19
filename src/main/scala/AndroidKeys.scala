@@ -36,8 +36,6 @@ object AndroidKeys {
   val manifestSchema = SettingKey[String]("manifest-schema")
   val envs = SettingKey[Seq[String]]("envs")
   val preinstalledModules = SettingKey[Seq[ModuleID]]("preinstalled-modules")
-  
-  /** Google Summer of Code - Added Default Settings (1st and 2nd not needed) */
   val androidAppClassesMinJarName = SettingKey[String]("android-app-classes-min-jar-name")
   val scalaLibraryClassesDexName = SettingKey[String]("scala-library-classes-dex-name")
   val androidAppClassesDexName = SettingKey[String]("android-app-classes-dex-name")
@@ -74,18 +72,12 @@ object AndroidKeys {
   val resourcesApkPath = SettingKey[File]("resources-apk-path")
   val packageApkPath = TaskKey[File]("package-apk-path")
   val useProguard = SettingKey[Boolean]("use-proguard")
-  
-  /** Google Summer of Code - Added Base Settings (1st and 2nd not needed) */
   val androidAppClassesMinJarPath = SettingKey[File]("android-app-classes-min-jar-path")
   val scalaLibraryClassesDexPath = SettingKey[File]("scala-library-classes-dex-path")
   val androidAppClassesDexPath = SettingKey[File]("android-app-classes-dex-path")
 
   /** Install Settings */
   val packageConfig = TaskKey[ApkConfig]("package-config", "Generates a Apk Config")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devPackageConfig = TaskKey[ApkConfig]("dev-package-config", "Generates a Apk Config")
 
   /** Typed Resource Settings */
@@ -115,8 +107,7 @@ object AndroidKeys {
 
   val apklibSources = TaskKey[Seq[File]]("apklib-sources", "Enumerate Java sources from apklibs")
   val aaptGenerate = TaskKey[Seq[File]]("aapt-generate", "Generate R.java")
-  val aidlGenerate = TaskKey[Seq[File]]("aidl-generate",
-    "Generate Java classes from .aidl files.")
+  val aidlGenerate = TaskKey[Seq[File]]("aidl-generate", "Generate Java classes from .aidl files.")
 
   val proguardInJars = TaskKey[Seq[File]]("proguard-in-jars")
   val proguardExclude = TaskKey[Seq[File]]("proguard-exclude")
@@ -125,35 +116,18 @@ object AndroidKeys {
 
   /** Installable Tasks */
   val installEmulator = TaskKey[Unit]("install-emulator")
-  val uninstallEmulator = TaskKey[Unit]("uninstall-emulator")
-  
-  /**
-   * Google Summer of Code
-   *
-   */
-  val devUninstallEmulator = TaskKey[Unit]("dev-uninstall-emulator")
-  val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
-
-  val installDevice = TaskKey[Unit]("install-device")
-  val uninstallDevice = TaskKey[Unit]("uninstall-device")
-  
-  /** 
-   * Google Summer of Code
-   *
-   * New TaskKeys:
-   *	android:dev-install-device
-   *	android:dev-install-emulator
-   *
-   * Don't know if these are needed because they perform simple uninstallation from phone
-   *	android:dev-uninstall-device
-   *	android:dev-uninstall-emulator
-   */
-  val devInstallDevice = TaskKey[Unit]("dev-install-device")
   val devInstallEmulator = TaskKey[Unit]("dev-install-emulator")
   
+  val uninstallEmulator = TaskKey[Unit]("uninstall-emulator")
+  val devUninstallEmulator = TaskKey[Unit]("dev-uninstall-emulator")
+  
+  val installDevice = TaskKey[Unit]("install-device")
+  val devInstallDevice = TaskKey[Unit]("dev-install-device")
+  
+  val uninstallDevice = TaskKey[Unit]("uninstall-device")
+  val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
+  
   /**
-   * Google Summer of Code
-   *
    * Composite keys used in AndroidFastInstall
    *
    * Keys:
@@ -171,98 +145,53 @@ object AndroidKeys {
   val devPgSettings = SettingKey[Seq[File]]("dev-pg-settings", "ProGuard settings for GSoC project")
 
   val aaptPackage = TaskKey[File]("aapt-package", "Package resources and assets.")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devAaptPackage = TaskKey[File]("dev-aapt-package", "Package resources and assets.")
   
   val packageDebug = TaskKey[File]("package-debug", "Package and sign with a debug key.")
   val packageRelease = TaskKey[File]("package-release", "Package without signing.")
   
-  // GSoC
   val devPackageDebug = TaskKey[File]("dev-package-debug", "Package and sign with a debug key.")
   val devPackageRelease = TaskKey[File]("dev-package-release", "Package without signing.")
   
   val cleanApk = TaskKey[Unit]("clean-apk", "Remove apk package")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devCleanApk = TaskKey[Unit]("dev-clean-apk", "Remove apk package")
   
   val proguard = TaskKey[Option[File]]("proguard", "Optimize class files.")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devProguard = TaskKey[Option[File]]("dev-proguard", "Optimize class files.")
   
   val dxInputs = TaskKey[Seq[File]]("dx-inputs", "Input for dex command")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devDxInputs = TaskKey[Seq[File]]("dev-dx-inputs", "Input for dex command")
   
   val dx = TaskKey[File]("dx", "Convert class files to dex files")
-  /**
-   * Google Summer of Code
-   *
-   */
   val devDx = TaskKey[File]("dev-dx", "Convert class files to dex files")
   
   val makeAssetPath = TaskKey[Unit]("make-assest-path")
-  
-  /**
-   * Google Summer of Code
-   *
-   */
   val devMakeAssetPath = TaskKey[Unit]("dev-make-assest-path")
 
   /** Launch Tasks */
-  val startDevice = TaskKey[Unit]("start-device",
-    "Start package on device after installation")
-  val startEmulator = TaskKey[Unit]("start-emulator",
-    "Start package on emulator after installation")
-  
-  /** 
-   * Google Summer of Code
-   *
-   * New TaskKeys:
-   *	android:dev-start-device
-   *	android:dev-start-emulator
-   */
+  val startDevice = TaskKey[Unit]("start-device", "Start package on device after installation")
+  val startEmulator = TaskKey[Unit]("start-emulator", "Start package on emulator after installation")
+
   val devStartDevice = TaskKey[Unit]("dev-start-device", "Start package on device after installation")
   val devStartEmulator = TaskKey[Unit]("dev-start-emulator", "Start package on emulator after installation")
 
   /** ddm Support tasks */
-  val stopBridge = TaskKey[Unit]("stop-bridge",
-    "Terminates the ADB debugging bridge")
-  val screenshotEmulator = TaskKey[File]("screenshot-emulator",
-    "Take a screenshot from the emulator")
-  val screenshotDevice = TaskKey[File]("screenshot-device",
-    "Take a screenshot from the device")
+  val stopBridge = TaskKey[Unit]("stop-bridge", "Terminates the ADB debugging bridge")
+  val screenshotEmulator = TaskKey[File]("screenshot-emulator", "Take a screenshot from the emulator")
+  val screenshotDevice = TaskKey[File]("screenshot-device", "Take a screenshot from the device")
 
   // hprof tasks are Unit because of async nature
-  val hprofEmulator = TaskKey[Unit]("hprof-emulator",
-    "Take a dump of the current heap from the emulator")
-  val hprofDevice = TaskKey[Unit]("hprof-device",
-    "Take a dump of the current heap from the device")
+  val hprofEmulator = TaskKey[Unit]("hprof-emulator", "Take a dump of the current heap from the emulator")
+  val hprofDevice = TaskKey[Unit]("hprof-device", "Take a dump of the current heap from the device")
 
-  val threadsEmulator = InputKey[Unit]("threads-emulator",
-    "Show thread dump from the emulator")
-  val threadsDevice = InputKey[Unit]("threads-device",
-    "Show thread dump from the device")
+  val threadsEmulator = InputKey[Unit]("threads-emulator", "Show thread dump from the emulator")
+  val threadsDevice = InputKey[Unit]("threads-device", "Show thread dump from the device")
 
   /** Market Publish tasks */
-  val prepareMarket = TaskKey[File]("prepare-market",
-    "Prepare asset for Market publication.")
+  val prepareMarket = TaskKey[File]("prepare-market", "Prepare asset for Market publication.")
   val zipAlign = TaskKey[File]("zip-align", "Run zipalign on signed jar.")
-  val signRelease = TaskKey[File]("sign-release",
-    "Sign with key alias using key-alias and keystore path.")
+  val signRelease = TaskKey[File]("sign-release", "Sign with key alias using key-alias and keystore path.")
   val cleanAligned = TaskKey[Unit]("clean-aligned", "Remove zipaligned jar")
-
 
   /** TypedResources Task */
   val generateTypedResources = TaskKey[Seq[File]]("generate-typed-resources",

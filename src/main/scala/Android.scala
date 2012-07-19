@@ -42,7 +42,6 @@ object AndroidProject extends Plugin {
                  .reduceLeftOption(_ | _).getOrElse(token("none"))
   }
 
-  // GSoC - Je li ovdje problem?
   lazy val androidSettings: Seq[Setting[_]] =
     AndroidBase.settings ++
     AndroidLaunch.settings ++

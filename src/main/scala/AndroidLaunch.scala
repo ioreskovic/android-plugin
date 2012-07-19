@@ -39,11 +39,7 @@ object AndroidLaunch {
     launcher.headOption.getOrElse("")
   }
 
-  /**
-   * Google Summer of Code
-   *
-   * Iz nekog razloga kada su oba ukljucena, zadnji prekriva sve ostale
-   */
+  /** Settings from AndroidInstall.scala */
   lazy val settings: Seq[Setting[_]] =
     AndroidInstall.settings ++
 	inConfig(Android) (Seq (
@@ -54,6 +50,7 @@ object AndroidLaunch {
       startEmulator <<= startEmulator dependsOn installEmulator
     ))
   
+  /** Settings from AndroidFastInstall.scala */
   lazy val devSettings: Seq[Setting[_]] =
     AndroidFastInstall.devSettings ++
     inConfig(Android) (Seq (

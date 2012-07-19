@@ -55,7 +55,6 @@ object AndroidHelpers {
               launcherActivity(schema, amPath.head, mPackage))
   }
   
-  // GSoC - dev clone
   def devStartTask(emulator: Boolean) =
     (dbPath, manifestSchema, manifestPackage, manifestPath, streams) map {
       (dp, schema, mPackage, amPath, s) =>

@@ -199,15 +199,16 @@ object AndroidBase {
     libraryJarPath <<= (jarPath (_ get)),
 	
 	/**
-	 * Google Summer of Code
-	 *
-	 * Constructing new, composite settings to use in dxTask and proguardTask
+	 * Constructing new, composite settings to use in devDxTask
 	 */
 	devDxSettings <<=	(androidAppClassesDexPath, classesMinJarPath) apply {
 						(androidAppClassesDexPath, classesMinJarPath) =>
 		Seq(androidAppClassesDexPath, classesMinJarPath)
 	},
 	
+	/**
+	 * Constructing new, composite settings to use in devProguardTask
+	 */
 	devPgSettings <<=	(androidAppClassesDexPath, classesMinJarPath, classesDexPath) apply {
 						(androidAppClassesDexPath, classesMinJarPath, classesDexPath) =>
 		Seq(androidAppClassesDexPath, classesMinJarPath, classesDexPath)

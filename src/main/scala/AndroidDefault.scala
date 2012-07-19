@@ -12,11 +12,11 @@ object AndroidDefaults {
   val DefaultAndroidJarName = "android.jar"								
   val DefaultAssetsDirectoryName = "assets"
   val DefaultResDirectoryName = "res"
-  val DefaultClassesMinJarName = "classes.min.jar"						//	what to do with this shit? Leave it alone, I guess
-  val DefaultClassesDexName = "classes.dex"								//	proguarded and dexed classes from both my.android.project and scala packages
-  val DefaultClassesMinAndroidAppJarName = "android-app.min.jar"		//	GSoC - Where ProGuarded android app goes
-  val DefaultScalaLibraryClassesDexName = "scala-library-classes.dex"	//	GSoC - Where dexed scala library goes
-  val DefaultAndroidAppClassesDexName = "android-app-classes.dex"		//	GSoC - Where dexed android app goes
+  val DefaultClassesMinJarName = "classes.min.jar"
+  val DefaultClassesDexName = "classes.dex"
+  val DefaultClassesMinAndroidAppJarName = "android-app.min.jar"
+  val DefaultScalaLibraryClassesDexName = "scala-library-classes.dex"
+  val DefaultAndroidAppClassesDexName = "android-app-classes.dex"
   val DefaultResourcesApkName = "resources.apk"
   val DefaultDxOpts = ("-JXmx512m", None)
   val DefaultManifestSchema = "http://schemas.android.com/apk/res/android"

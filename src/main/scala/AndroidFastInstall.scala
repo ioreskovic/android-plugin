@@ -22,6 +22,20 @@ import com.android.dx.merge.CollisionPolicy
 
 import org.objectweb.asm.depend.DependencyLister
 
+/**
+ * Provides functionality for quicker Android development process.<br>
+ * <br>
+ * On first deployment, ProGuard is being ran over entire Scala library with some exceptoions.<br>
+ * On each following deployment, several conditions are checked:<br>
+ * <ul>
+ *   <li>If the source files are up to date, the application is immediately being pushed to the device or emulator.</li><br>
+ *   <li>If the source files contain no new classes or methods from Scala library, the sources are dexed and merged with existing application.</li><br>
+ *   <li>If the source files contain at least one new class or method, ProGuard is ran over Scala library, but with instructions to keep new classes or methods.</li><br>
+ * </ul>
+ * <br>
+ * @author Ivan Oreskovic
+ * @see <a href="https://github.com/ioreskovic/android-plugin">GitHub Repository</a>
+ */
 object AndroidFastInstall {
   
   var incrementAppOnly = false
@@ -58,9 +72,11 @@ object AndroidFastInstall {
   }
   
   /**
-   * Google Summer of Code
+   * Converts Java multi-map (java.util.Map[java.lang.String, java.util.Set[java.lang.String]]) to<br>
+   * Scala mutable multi-map (scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]])
    *
-   * Converts java multi map to scala multi map
+   * @param jimap Java multi-map to be converted
+   * @return Scala representationof the specified Java multi-map
    */
   def asMutableScalaMultiMap(jimap: java.util.Map[java.lang.String, java.util.Set[java.lang.String]]): MMap[String, MSet[String]] = {
 	MMap(
@@ -69,9 +85,11 @@ object AndroidFastInstall {
   }
   
   /**
-   * Google Summer of Code
+   * Checks if the first dependency multi-map is a subset of the second.
    *
-   * Checks if the first dependency multi map is a subset of the second
+   * @param cDeps the first multi-map
+   * @param jDeps the second multi-map
+   * @return <code>true</code> if the first multi-map is the subset of the second. Otherwise, <code>false</code>
    */
   def isSubset(cDeps: MMap[String, MSet[String]], jDeps: MMap[String, MSet[String]]): Boolean = {
 	for (cKey <- cDeps.keys) {
@@ -94,9 +112,12 @@ object AndroidFastInstall {
   }
   
   /**
-   * Google Summer of Code
+   * Merges two multi-maps into one. Entries under the same key are merged together as sets where no duplicates extist.<br>
+   * If one map contains a mapping which isn't present in the other one, the mapping is simply copied to the resulting map.
    *
-   * Merges two TreeSet composite HashMap
+   * @param deps1 the first multi-map
+   * @param deps2 the second multi-map
+   * @return the result of merging first and second multim-map
    */
   def depsUnion(deps1: MMap[String, MSet[String]], deps2: MMap[String, MSet[String]]): MMap[String, MSet[String]] = {
 	for (key <- deps2.keys) {
@@ -110,9 +131,10 @@ object AndroidFastInstall {
   }
   
   /**
-   * Goole Summer of Code
+   * Extracts all the class and method dependencies from a dependency multi-map as string and return them as ProGuard "-keep" arguments.
    *
-   * Extracts all the class and method dependencies from a dependency map as string.
+   * @param allDeps the dependency multi-map
+   * @return <code>String</code> containing a list of ProGuard "-keep" arguments with classes and methods from the specified multi-map
    */
   def getProGuardKeepArgs(allDeps: MMap[String, MSet[String]]): String = {
 	var sb = new StringBuilder()
@@ -130,9 +152,11 @@ object AndroidFastInstall {
   }
   
   /**
-   * Google Summer of Code
-   *
    * Checks whether the input files are up to date in regard to the output file.
+   *
+   * @param inputs files to be compared against the output file
+   * @param output file being compared to the input files
+   * @return <code>true</code> if all the input files were modified earlier than the output file. Otherwise, <code>false</code>
    */
   def isUpToDate(inputs: Seq[JFile], output: JFile): Boolean = {
 	val upToDate = output.exists && inputs.forall(input =>
@@ -147,13 +171,13 @@ object AndroidFastInstall {
   }
   
   /**
-   * Google Summer of Code
+   * Merges all the input dex files into the output file if the input files are not up to date regarding to the output file.
    *
-   * Merges all the input dex files into the output file
+   * @param inputs the input <code>.dex</code> files
+   * @param output the file where merged <code>.dex</code> files will be written.
    */
   def mergeDex(inputs: Seq[JFile], output: JFile) {
 	if (!isUpToDate(inputs, output)) {
-		println("(" + inputs + ") => [DEX MERGER FAST] => (" + output + ")")
 		val lb = new ListBuffer[DexBuffer]
 		
 		for (file <- inputs) {
@@ -188,16 +212,13 @@ object AndroidFastInstall {
   private def devDxTask: Project.Initialize[Task[File]] =
     (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
     (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
-	
-	  //------------------------------------------------------------------------\\
-	  //        Modified Google Summer of Code Android Plugin functions         \\
-	  //------------------------------------------------------------------------\\
 	  
 	  /**
-	   * Google Summer of Code
-	   *
 	   * Performs dexing on the input files, storing the result in the output file.
 	   * Dexing is not executed if all the input files are up to date in regatd to the output file.
+	   *
+	   * @param inputs the specified input files to be dexed
+	   * @param output the specified output location for writing the <code>.dex</code> file
 	   */
 	  def dexing(inputs: Seq[JFile], output: JFile) {
 	    val upToDate = isUpToDate(inputs, output)
@@ -217,14 +238,12 @@ object AndroidFastInstall {
 		  ).filter(_.length > 0)
 		  
 		  streams.log.debug(dxCmd.mkString(" "))
-		  streams.log.info("[GSoC] Dexing "+output.getAbsolutePath)
+		  streams.log.info("[Development] Dexing "+output.getAbsolutePath)
 		  streams.log.debug(dxCmd !!)
 		} else {
 		  streams.log.debug("dex file " + output.getAbsolutePath + " uptodate, skipping")
 		}
 	  }
-	  
-	  println("[DX INPUTS]\n\t" + devDxInputs.mkString("\n\t") + "\n\n")
 	  
 	  val appDexPath = devDxSettings(0)
 	  val clsJarPath = devDxSettings(1)
@@ -233,9 +252,6 @@ object AndroidFastInstall {
 		dexing(Seq(classDirectory), appDexPath)
 		mergeDex(Seq(appDexPath, classesDexPath), classesDexPath)
 	  } else {
-		// dexing(Seq(clsJarPath), classesDexPath)
-		// dexing(filesToFinder(devDxInputs).get, classesDexPath)
-		
 		dxOpts._2 match {
         case None =>
           dexing(filesToFinder(devDxInputs).get, classesDexPath)
@@ -277,8 +293,6 @@ object AndroidFastInstall {
     }
 	
   /**
-   * Google Summer of Code
-   *
    * Runs ProGuard on all inputs, storing the result to the output file.
    */
   private def devProguardTask: Project.Initialize[Task[Option[File]]] = 
@@ -290,6 +304,7 @@ object AndroidFastInstall {
 	  val clsDexPath = devPgSettings(2)
 	  
 	  var upToDate = isUpToDate(Seq(classDirectory), clsDexPath)
+	  
 	  if (appDexPath.exists) {
 		upToDate = upToDate && isUpToDate(Seq(classDirectory), appDexPath)
 	  }
@@ -308,21 +323,21 @@ object AndroidFastInstall {
 				allDeps = depsUnion(allDeps, deps)
 				keepArgs = getProGuardKeepArgs(allDeps)
 				incrementAppOnly = false
-				streams.log.info("[GSoC] New classes/methods detected. Trying to run ProGuard over entire project")
+				streams.log.info("[Development] New classes/methods detected. Trying to run ProGuard over entire project")
 			} else {
 				incrementAppOnly = true
-				streams.log.info("[GSoC] No new classes/methods detected. Trying to dex android-app classes only and merge with existing classes.dex")
+				streams.log.info("[Development] No new classes/methods detected. Trying to dex android-app classes only and merge with existing classes.dex")
 			}
 		
 		}
 		
 		if (incrementAppOnly == true) {
-			streams.log.info("]Android:dev-install-device]	Skipping Proguard")
+			streams.log.info("[Development]	Skipping Proguard")
 			None
 		} else {
 		
 			if (!clsDexPath.exists) {
-				streams.log.info("[GSoC] First time build. Trying to run ProGuard over entire project")
+				streams.log.info("[Development] First time build. Trying to run ProGuard over entire project")
 			}
 			
 			val optimizationOptions = if (proguardOptimizations.isEmpty) Seq("-dontoptimize") else proguardOptimizations
@@ -372,7 +387,7 @@ object AndroidFastInstall {
 			Some(clsJarPath)
 		}
 	} else {
-		streams.log.info("[android:dev-install-device]	Skipping Proguard")
+		streams.log.info("[Development]	Skipping Proguard")
 		None
 	}
   }
