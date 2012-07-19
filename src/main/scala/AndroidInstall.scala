@@ -148,6 +148,8 @@ object AndroidInstall {
                  "-keep public class * extends android.app.Application" ::
                  "-keep public class "+manifestPackage+".** { public protected *; }" ::
                  "-keep public class * implements junit.framework.Test { public void test*(); }" ::
+				 "-keep class scala.Function1 { *; }" ::
+				"-keep class scala.ScalaObject { *; }" ::
                  """
                   -keepclassmembers class * implements java.io.Serializable {
                     private static final java.io.ObjectStreamField[] serialPersistentFields;

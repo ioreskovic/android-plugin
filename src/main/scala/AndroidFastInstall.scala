@@ -34,7 +34,7 @@ object AndroidFastInstall {
     adbTask(dp.absolutePath, emulator, s, "uninstall", m)
   }
 
-  private def aaptPackageTask: Project.Initialize[Task[File]] =
+  private def devAaptPackageTask: Project.Initialize[Task[File]] =
   (aaptPath, manifestPath, mainResPath, mainAssetsPath, jarPath, resourcesApkPath, extractApkLibDependencies, streams) map {
     (apPath, manPath, rPath, assetPath, jPath, resApkPath, apklibs, s) =>
 
@@ -185,9 +185,9 @@ object AndroidFastInstall {
 	}	
   }
   
-  private def dxTask: Project.Initialize[Task[File]] =
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
-    (dxPath, dxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
+  private def devDxTask: Project.Initialize[Task[File]] =
+    (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
+    (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
 	
 	  //------------------------------------------------------------------------\\
 	  //        Modified Google Summer of Code Android Plugin functions         \\
@@ -224,7 +224,7 @@ object AndroidFastInstall {
 		}
 	  }
 	  
-	  println("[DX INPUTS]\n\t" + dxInputs.mkString("\n\t") + "\n\n")
+	  println("[DX INPUTS]\n\t" + devDxInputs.mkString("\n\t") + "\n\n")
 	  
 	  val appDexPath = devDxSettings(0)
 	  val clsJarPath = devDxSettings(1)
@@ -234,15 +234,15 @@ object AndroidFastInstall {
 		mergeDex(Seq(appDexPath, classesDexPath), classesDexPath)
 	  } else {
 		// dexing(Seq(clsJarPath), classesDexPath)
-		// dexing(filesToFinder(dxInputs).get, classesDexPath)
+		// dexing(filesToFinder(devDxInputs).get, classesDexPath)
 		
 		dxOpts._2 match {
         case None =>
-          dexing(filesToFinder(dxInputs).get, classesDexPath)
+          dexing(filesToFinder(devDxInputs).get, classesDexPath)
         case Some(predex) =>
           val (dexFiles, predexFiles) = predex match {
             case exceptSeq: Seq[_] if exceptSeq.nonEmpty =>
-              val (filtered, orig) = filesToFinder(dxInputs).get.partition(file =>
+              val (filtered, orig) = filesToFinder(devDxInputs).get.partition(file =>
               exceptSeq.exists(filter => {
                 streams.log.debug("apply filter \"" + filter + "\" to \"" + file.getAbsolutePath + "\"")
                 file.getAbsolutePath.matches(filter)
@@ -251,7 +251,7 @@ object AndroidFastInstall {
               (((classDirectory --- scalaInstance.libraryJar).get ++ filtered), orig)
             case _ =>
               // dex only classes directory, predex all other
-              ((classDirectory --- scalaInstance.libraryJar).get, (dxInputs --- classDirectory).get)
+              ((classDirectory --- scalaInstance.libraryJar).get, (devDxInputs --- classDirectory).get)
           }
           dexFiles.foreach(s => streams.log.debug("pack in dex \"" + s.getName + "\""))
           predexFiles.foreach(s => streams.log.debug("pack in predex \"" + s.getName + "\""))
@@ -281,7 +281,7 @@ object AndroidFastInstall {
    *
    * Runs ProGuard on all inputs, storing the result to the output file.
    */
-  private def proguardTask: Project.Initialize[Task[Option[File]]] = 
+  private def devProguardTask: Project.Initialize[Task[Option[File]]] = 
 	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) map { 
 	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) =>
 
@@ -377,7 +377,7 @@ object AndroidFastInstall {
 	}
   }
 
-  private def devPackageTask(debug: Boolean):Project.Initialize[Task[File]] = (packageConfig, streams) map { (c, s) =>
+  private def devPackageTask(debug: Boolean):Project.Initialize[Task[File]] = (devPackageConfig, streams) map { (c, s) =>
     val builder = new ApkBuilder(c, debug)
     builder.build.fold(sys.error(_), s.log.info(_))
     s.log.debug(builder.outputStream.toString)
@@ -390,35 +390,35 @@ object AndroidFastInstall {
   )
 
   lazy val devSettings: Seq[Setting[_]] = inConfig(Android) (devInstallerTasks ++ Seq (
-    uninstallEmulator <<= devUninstallTask(emulator = true),
-    uninstallDevice <<= devUninstallTask(emulator = false),
+    devUninstallEmulator <<= devUninstallTask(emulator = true),
+    devUninstallDevice <<= devUninstallTask(emulator = false),
 
-    makeAssetPath <<= directory(mainAssetsPath),
+    devMakeAssetPath <<= directory(mainAssetsPath),
 
-    aaptPackage <<= aaptPackageTask,
-    aaptPackage <<= aaptPackage dependsOn (makeAssetPath, dx),
-    dx <<= dxTask,
-    dxInputs <<= (proguard, proguardInJars, scalaInstance, classDirectory) map {
-      (proguard, proguardInJars, scalaInstance, classDirectory) =>
-      proguard match {
+    devAaptPackage <<= devAaptPackageTask,
+    devAaptPackage <<= devAaptPackage dependsOn (devMakeAssetPath, devDx),
+    devDx <<= devDxTask,
+    devDxInputs <<= (devProguard, proguardInJars, scalaInstance, classDirectory) map {
+      (devProguard, proguardInJars, scalaInstance, classDirectory) =>
+      devProguard match {
          case Some(file) => Seq(file)
          case None => (classDirectory +++ proguardInJars --- scalaInstance.libraryJar) get
       }
     },
 
-    cleanApk <<= (packageApkPath) map (IO.delete(_)),
+    devCleanApk <<= (packageApkPath) map (IO.delete(_)),
 
-    proguard <<= proguardTask,
-    proguard <<= proguard dependsOn (compile in Compile),
+    devProguard <<= devProguardTask,
+    devProguard <<= devProguard dependsOn (compile in Compile),
 
-    packageConfig <<=
+    devPackageConfig <<=
       (toolsPath, packageApkPath, resourcesApkPath, classesDexPath,
-       nativeLibrariesPath, managedNativePath, dxInputs, resourceDirectory) map
+       nativeLibrariesPath, managedNativePath, devDxInputs, resourceDirectory) map
       (ApkConfig(_, _, _, _, _, _, _, _)),
 
     devPackageDebug <<= devPackageTask(true),
     devPackageRelease <<= devPackageTask(false)
   ) ++ Seq(devPackageDebug, devPackageRelease).map {
-    t => t <<= t dependsOn (cleanApk, aaptPackage, copyNativeLibraries)
+    t => t <<= t dependsOn (devCleanApk, devAaptPackage, copyNativeLibraries)
   })
 }

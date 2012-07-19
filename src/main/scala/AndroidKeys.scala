@@ -81,8 +81,12 @@ object AndroidKeys {
   val androidAppClassesDexPath = SettingKey[File]("android-app-classes-dex-path")
 
   /** Install Settings */
-  val packageConfig = TaskKey[ApkConfig]("package-config",
-    "Generates a Apk Config")
+  val packageConfig = TaskKey[ApkConfig]("package-config", "Generates a Apk Config")
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devPackageConfig = TaskKey[ApkConfig]("dev-package-config", "Generates a Apk Config")
 
   /** Typed Resource Settings */
   val managedScalaPath = SettingKey[File]("managed-scala-path")
@@ -122,6 +126,13 @@ object AndroidKeys {
   /** Installable Tasks */
   val installEmulator = TaskKey[Unit]("install-emulator")
   val uninstallEmulator = TaskKey[Unit]("uninstall-emulator")
+  
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devUninstallEmulator = TaskKey[Unit]("dev-uninstall-emulator")
+  val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
 
   val installDevice = TaskKey[Unit]("install-device")
   val uninstallDevice = TaskKey[Unit]("uninstall-device")
@@ -159,10 +170,14 @@ object AndroidKeys {
   val devDxSettings = SettingKey[Seq[File]]("dev-dx-settings", "Dexer settings for GSoC project")
   val devPgSettings = SettingKey[Seq[File]]("dev-pg-settings", "ProGuard settings for GSoC project")
 
-  val aaptPackage = TaskKey[File]("aapt-package",
-    "Package resources and assets.")
-  val packageDebug = TaskKey[File]("package-debug",
-    "Package and sign with a debug key.")
+  val aaptPackage = TaskKey[File]("aapt-package", "Package resources and assets.")
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devAaptPackage = TaskKey[File]("dev-aapt-package", "Package resources and assets.")
+  
+  val packageDebug = TaskKey[File]("package-debug", "Package and sign with a debug key.")
   val packageRelease = TaskKey[File]("package-release", "Package without signing.")
   
   // GSoC
@@ -170,12 +185,40 @@ object AndroidKeys {
   val devPackageRelease = TaskKey[File]("dev-package-release", "Package without signing.")
   
   val cleanApk = TaskKey[Unit]("clean-apk", "Remove apk package")
-
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devCleanApk = TaskKey[Unit]("dev-clean-apk", "Remove apk package")
+  
   val proguard = TaskKey[Option[File]]("proguard", "Optimize class files.")
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devProguard = TaskKey[Option[File]]("dev-proguard", "Optimize class files.")
+  
   val dxInputs = TaskKey[Seq[File]]("dx-inputs", "Input for dex command")
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devDxInputs = TaskKey[Seq[File]]("dev-dx-inputs", "Input for dex command")
+  
   val dx = TaskKey[File]("dx", "Convert class files to dex files")
-
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devDx = TaskKey[File]("dev-dx", "Convert class files to dex files")
+  
   val makeAssetPath = TaskKey[Unit]("make-assest-path")
+  
+  /**
+   * Google Summer of Code
+   *
+   */
+  val devMakeAssetPath = TaskKey[Unit]("dev-make-assest-path")
 
   /** Launch Tasks */
   val startDevice = TaskKey[Unit]("start-device",
