@@ -128,6 +128,22 @@ object AndroidKeys {
   val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
   
   /**
+   * Task Keys for installing and uninstalling Scala library on rooted phones
+   */
+  val rootInstallScala_2_8_1 = TaskKey[Unit]("root-install-scala_2_8_1")
+  val rootUninstallScala_2_8_1 = TaskKey[Unit]("root-uninstall-scala_2_8_1")
+  
+  val rootInstallScala_2_9_0 = TaskKey[Unit]("root-install-scala_2_9_0")
+  val rootUninstallScala_2_9_0 = TaskKey[Unit]("root-uninstall-scala_2_9_0")
+  
+  val rootInstallScala_2_9_1 = TaskKey[Unit]("root-install-scala_2_9_1")
+  val rootUninstallScala_2_9_1 = TaskKey[Unit]("root-uninstall-scala_2_9_1")
+  
+  val rootInstallScala_2_10_0_M5 = TaskKey[Unit]("root-install-scala_2_10_0_M5")
+  val rootUninstallScala_2_10_0_M5 = TaskKey[Unit]("root-uninstall-scala_2_10_0_M5")
+  
+  
+  /**
    * Composite keys used in AndroidFastInstall
    *
    * Keys:

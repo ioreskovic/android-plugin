@@ -3,6 +3,7 @@ import Keys._
 
 import AndroidKeys._
 import AndroidHelpers.isWindows
+import RootScalaInstaller._
 
 import complete.DefaultParsers._
 
@@ -46,7 +47,8 @@ object AndroidProject extends Plugin {
     AndroidBase.settings ++
     AndroidLaunch.settings ++
     AndroidDdm.settings ++
-	AndroidLaunch.devSettings
+	AndroidLaunch.devSettings ++
+	RootScalaInstaller.rootScalaSettings
 
   // Android path and defaults can load for every project
   // No aggregation of the emulator runnables
