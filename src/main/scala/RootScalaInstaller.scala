@@ -7,8 +7,6 @@ import java.io.{ File => JFile }
 import java.io.{ Writer => JWriter, PrintWriter => JPrintWriter }
 import java.lang.{ System => JSystem }
 
-// import android.os.Build._
-
 /**
  * Provides functionality for pushing and removing different Scala versions to and from a rooted device.
  */
@@ -60,81 +58,104 @@ object RootScalaInstaller {
 	 *
 	 * @return <code>true</code> if the connected device is rooted. Otherwise, <code>false</code>
 	 */
-	private def checkRoot(): Boolean = {
-		// if (checkRootMethod1()) return true
-		if (checkRootMethod2()) return true
-		
-		return false
-	}
-
-	// private def checkRootMethod1(): Boolean = {
-		// val buildTags = android.os.Build.TAGS
-		
-		// if (buildTags && buildTags.contains("test-keys")) return true
-		
-		// return false
-	// }
-	
-	/**
-	 * Checks whether the device is rooted by examining if the Superuser application is installed.
-	 *
-	 * @return <code>true</code> if the Superuser.apk exists in device's /system/app directory. <code>false</code> otherwise
-	 */
-	private def checkRootMethod2(): Boolean = {
-		return true
-		// try {
-			// val file = new JFile("/system/app/Superuser.apk")
-			// if (file.exists) return true
-		// } catch {
-			// case _ => return false
-		// }
-		
-		// return false
+	private def checkRoot(dbPath: JFile, streams: TaskStreams): Boolean = {
+		if (checkRootMethodWithWritePermission(dbPath.getAbsolutePath, streams)) {
+			return true
+		} else {
+			return false
+		}
 	}
 	
 	/**
-	 * Attempts to push the specified Scala version to the connected device. The device needs to be rooted for this operation to succeed.
+	 * Checks whether the device is rooted by examining if a <code>write</code> permission exists on root(<code>/</code>).
 	 *
-	 * @param version The specified Scala version to be pushed
+	 * @return <code>true</code> if a <code>write</code> permission exists on root(<code>/</code>). <code>false</code> otherwise
 	 */
-	private def pushScala(version: String) = (dbPath, streams) map {
-		                                     (dbPath, streams) =>
+	private def checkRootMethodWithWritePermission(dbPath: String, streams: TaskStreams): Boolean = {
 		
-		val isRooted = checkRoot()
+		val (exit, response) = adbTaskWithOutput(dbPath, false, streams,
+			"shell",
+			"[ -w / ] && echo Rooted || echo Not Rooted"
+		)
+		
+		if (response.trim.equals("Rooted")) {
+			return true
+		} else {
+			return false
+		}
+	}
+	
+	/**
+	 * Attempts to push the project-specified Scala version to the connected device. The device needs to be rooted for this operation to succeed.
+	 */
+	def pushScala() = (dbPath, streams, scalaVersion, rootScalaVersion) map {
+		              (dbPath, streams, version, installedVersions) =>
+		
+		val isRooted = checkRoot(dbPath, streams)
+		val home = JSystem.getProperty("user.home")
+		val sep = JSystem.getProperty("file.separator")
 		
 		if (isRooted) {
-			
 			streams.log.info("[Development] Rooted device detected. Preparing to push Scala " + version + " to device...")
 			
 			val scalaVersionExists = makePermission(version)
 			
 			if (scalaVersionExists) {
 			
-				streams.log.info("[Development] Scala " + version + " found")
-				streams.log.info("[Development] Trying to push Scala " + version + " to device")
+				if (installedVersions.contains(version) && (installedVersions.size == 1)) {
+					streams.log.info("[Development] Scala library version: " + version + " is already present. Skipping...")
+				} else {
+					streams.log.info("[Development] Scala " + version + " found")
+					streams.log.info("[Development] Trying to push Scala " + version + " to device")
+					
+					streams.log.info("[Development] Remounting device...")
+					adbTask(dbPath.getAbsolutePath, false, streams, "remount")
+					
+					for (installedVersion <- installedVersions) {
+						if (!installedVersion.equals(version)) {
+							streams.log.info("[Development] Removing Scala library version: " + installedVersion + "...")
+							
+							adbTask(
+								dbPath.getAbsolutePath, false, streams, 
+								"shell",
+								"rm -f",
+								"/system/framework/scala-library-" + installedVersion + ".jar"
+							)
+							
+							adbTask(
+								dbPath.getAbsolutePath, false, streams, 
+								"shell",
+								"rm -f",
+								"/system/etc/permissions/scala-library-" + installedVersion +  ".xml"
+							)
+						}
+					}
+					
+					if (!installedVersions.contains(version)) {
+						streams.log.info("[Development] Pushing Scala library version: " + version + "...")
+						
+						adbTask(
+							dbPath.getAbsolutePath, false, streams, 
+							"push", 
+							home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "lib" + sep + "scala-library.jar", 
+							"/system/framework/scala-library-" + version + ".jar"
+						)
+						
+						adbTask(
+							dbPath.getAbsolutePath, false, streams, 
+							"push", 
+							home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "scala-library.xml", 
+							"/system/etc/permissions/scala-library-" + version +  ".xml"
+						)
+					}
+					
+					streams.log.info("[Development] Rebooting device...")
+					adbTask(dbPath.getAbsolutePath, false, streams, "reboot")
+					
+				}
 				
-				val home = JSystem.getProperty("user.home")
-				val sep = JSystem.getProperty("file.separator")
-				
-				adbTask(dbPath.getAbsolutePath, false, streams, "remount")
-				
-				adbTask(
-					dbPath.getAbsolutePath, false, streams, 
-					"push", 
-					home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "lib" + sep + "scala-library.jar", 
-					"/system/framework/scala-library-" + version + ".jar"
-				)
-				
-				adbTask(
-					dbPath.getAbsolutePath, false, streams, 
-					"push", 
-					home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "scala-library.xml", 
-					"/system/etc/permissions/scala-library-" + version +  ".xml"
-				)
-				
-				adbTask(dbPath.getAbsolutePath, false, streams, "reboot")
 			} else {
-				streams.log.info("[Development] Scala " + version + " not found")
+				streams.log.info("[Development] Scala " + version + " not found. Please download Scala library " + version + ".")
 			}
 		} else {
 			streams.log.info("[Development] Your device is not rooted. This operations is supported by rooted phones only.")
@@ -142,39 +163,87 @@ object RootScalaInstaller {
 	}
 	
 	/**
-	 * Attempts to remove the specified Scala version from the connected device. The device needs to be rooted for this operation to succeed.
-	 *
-	 * @param version The specified Scala version to be removed
+	 * Attempts to remove all the Scala versions from the connected device. The device needs to be rooted for this operation to succeed.
 	 */
-	private def removeScala(version: String) = (dbPath, streams) map {
-	                                           (dbPath, streams) =>
+	def removeScala() = (dbPath, streams, rootScalaVersion) map {
+	                    (dbPath, streams, installedVersions) =>
 		
-		val isRooted = checkRoot()
+		val isRooted = checkRoot(dbPath, streams)
 		
-		if (isRooted) {
+		if (isRooted && !installedVersions.isEmpty) {
+			streams.log.info("[Development] Rooted device detected. Attempting to remove Scala libraries from device: " + installedVersions.mkString(", ") + "...")
 			
-			streams.log.info("[Development] Rooted device detected. Removing Scala " + version + " from device...")
-			
+			streams.log.info("[Development] Remounting device...")
 			adbTask(dbPath.getAbsolutePath, false, streams, "remount")
 			
-			adbTask(
-				dbPath.getAbsolutePath, false, streams, 
-				"shell",
-				"rm -f",
-				"/system/framework/scala-library-" + version + ".jar"
-			)
+			for (installedVersion <- installedVersions) {
+				streams.log.info("[Development] Removing Scala library version: " + installedVersion + "...")
+				
+				adbTask(
+					dbPath.getAbsolutePath, false, streams, 
+					"shell",
+					"rm -f",
+					"/system/framework/scala-library-" + installedVersion + ".jar"
+				)
+				
+				adbTask(
+					dbPath.getAbsolutePath, false, streams, 
+					"shell",
+					"rm -f",
+					"/system/etc/permissions/scala-library-" + installedVersion +  ".xml"
+				)
+			}
 			
-			adbTask(
-				dbPath.getAbsolutePath, false, streams, 
-				"shell",
-				"rm -f",
-				"/system/etc/permissions/scala-library-" + version +  ".xml"
-			)
-			
+			streams.log.info("[Development] Rebooting device ...")
 			adbTask(dbPath.getAbsolutePath, false, streams, "reboot")
+		} else if (isRooted && installedVersions.isEmpty) {
+			streams.log.info("[Development] Rooted device detected. No Scala library detected.")
 		} else {
 			streams.log.info("[Development] Your device is not rooted. This operations is supported by rooted phones only.")
 		}
+	}
+	
+	/**
+	 * Checks if there is already a Scala library on the rooted device and saves that as a setting.
+	 */
+	def checkScala(): Project.Initialize[Task[Seq[String]]] = (dbPath, streams) map {
+	                                                                  (dbPath, streams) =>
+		
+		val isRooted = checkRoot(dbPath, streams)
+		
+		if (isRooted) {
+			streams.log.info("[Development] Rooted device detected. Checking Scala version on device...")
+			
+			val (exit, response) = adbTaskWithOutput(
+				dbPath.getAbsolutePath, false, streams, 
+				"shell",
+				"ls /system/framework/scala-library*.jar"
+			)
+			
+			if ((exit != 0) || (response.contains("Failure"))) {
+				streams.log.info("[Development] Error executing ADB.")
+				Seq.empty[String]
+			} else if (response.contains("No such file") || !response.contains("/system/framework/scala-library-")) {
+				streams.log.info("[Development] No Scala library detected on device")
+				Seq.empty[String]
+			} else {
+				var versions = Seq.empty[String]
+				val lines = response.split("\n")
+				
+				for (line <- lines) {
+					val v = line.split("/system/framework/scala-library-")(1).split("\\.jar")(0)
+					versions = v +: versions 
+					streams.log.info("[Development] Found Scala Library version: " + v)
+				}
+				
+				versions
+			}
+
+		} else {
+			streams.log.info("[Development] Your device is not rooted. This operations is supported by rooted phones only.")
+			Seq.empty[String]
+		}
+		
 	}
 	
 	/**
@@ -182,17 +251,9 @@ object RootScalaInstaller {
 	 */
 	lazy val rootScalaSettings: Seq[Setting[_]] = inConfig(Android) (
 		Seq(
-			rootInstallScala_2_8_1 <<= pushScala(version = "2.8.1"),
-			rootUninstallScala_2_8_1 <<= removeScala(version = "2.8.1"),
-			
-			rootInstallScala_2_9_0 <<= pushScala(version = "2.9.0"),
-			rootUninstallScala_2_9_0 <<= removeScala(version = "2.9.0"),
-			
-			rootInstallScala_2_9_1 <<= pushScala(version = "2.9.1"),
-			rootUninstallScala_2_9_1 <<= removeScala(version = "2.9.1"),
-			
-			rootInstallScala_2_10_0_M5 <<= pushScala(version = "2.10.0-M5"),
-			rootUninstallScala_2_10_0_M5 <<= removeScala(version = "2.10.0-M5")
+			rootScalaVersion <<= checkScala,
+			rootScalaUninstall <<= removeScala dependsOn rootScalaVersion,
+			rootScalaInstall <<= pushScala dependsOn rootScalaVersion
 		)
 	)
 }
