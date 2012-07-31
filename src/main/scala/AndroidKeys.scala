@@ -133,7 +133,7 @@ object AndroidKeys {
   val rootScalaInstall = TaskKey[Unit]("root-scala-install")
   val rootScalaUninstall = TaskKey[Unit]("root-scala-uninstall")
   val rootScalaVersion = TaskKey[Seq[String]]("root-scala-version")
-  
+  val rootScalaLibrarySplit = TaskKey[Unit]("root-scala-library-split")
   
   /**
    * Composite keys used in AndroidFastInstall
