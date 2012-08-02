@@ -128,12 +128,35 @@ object AndroidKeys {
   val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
   
   /**
-   * Task Keys for installing, uninstalling and checking the version of Scala library on rooted phones
+   * Keys for installing, uninstalling and checking the version of Scala library on rooted phones
    */
   val rootScalaInstall = TaskKey[Unit]("root-scala-install")
   val rootScalaUninstall = TaskKey[Unit]("root-scala-uninstall")
   val rootScalaVersion = TaskKey[Seq[String]]("root-scala-version")
   val rootScalaLibrarySplit = TaskKey[Unit]("root-scala-library-split")
+
+  val rootScalaLibraryDex = TaskKey[Unit]("root-scala-library-dex")
+  val rootScalaLibraryRepack = TaskKey[Unit]("root-scala-library-repack")
+  val rootScalaLibraryAllow = TaskKey[Unit]("root-scala-library-allow")
+  val rootScalaCreateDirectories = TaskKey[Unit]("root-scala-create-directories")
+  
+  // val mainPackage = SettingKey[String]("main-package")
+  // val homeDirectory = SettingKey[File]("home-directory")
+  // val scalaFolder = SettingKey[File]("scala-folder")
+  // val scalaLibraryFile = SettingKey[File]("scala-library-file")
+  // val scalaJarsDirectory = SettingKey[File]("scala-jars-directory")
+  // val scalaDexsDirectory = SettingKey[File]("scala-dexs-directory")
+  // val scalaXmlsDirectory = SettingKey[File]("scala-xmls-directory")
+  // val scalaLibsDirectory = SettingKey[File]("scala-libs-directory")
+  
+  val mainPackage = TaskKey[String]("main-package")
+  val homeDirectory = TaskKey[File]("home-directory")
+  val scalaFolder = TaskKey[File]("scala-folder")
+  val scalaLibraryFile = TaskKey[File]("scala-library-file")
+  val scalaJarsDirectory = TaskKey[File]("scala-jars-directory")
+  val scalaDexsDirectory = TaskKey[File]("scala-dexs-directory")
+  val scalaXmlsDirectory = TaskKey[File]("scala-xmls-directory")
+  val scalaLibsDirectory = TaskKey[File]("scala-libs-directory")
   
   /**
    * Composite keys used in AndroidFastInstall

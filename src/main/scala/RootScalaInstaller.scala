@@ -27,9 +27,7 @@ import scala.util.Properties._
  * Scala version being pushed is the same one the project is written in.<br>
  */
 object RootScalaInstaller {
-	
-	lazy val mainPackage = getPackageName
-	
+
 	/**
 	 * Tries to create a permissions xml file for the Scala library version specified.<br>
 	 * If specified scala version is not present locally, an attempt to download it is made.<br>
@@ -95,8 +93,11 @@ object RootScalaInstaller {
 	 */
 	private def repackJarCollection(src: String, dest: String, prefix: String) {
 		
-		val in = new ZipInputStream(new FileInputStream(new JFile(src)))
-		val out = new ZipOutputStream(new FileOutputStream(new JFile(dest)))
+		val source = new JFile(src)
+		val destination = new JFile(dest)
+		
+		val in = new ZipInputStream(new FileInputStream(source))
+		val out = new ZipOutputStream(new FileOutputStream(destination))
 		
 		var entry: ZipEntry = in.getNextEntry
 		
@@ -127,8 +128,11 @@ object RootScalaInstaller {
 	 */
 	private def repackJarPart(src: String, dest: String, prefix: String) {
 		
-		val in = new ZipInputStream(new FileInputStream(new JFile(src)))
-		val out = new ZipOutputStream(new FileOutputStream(new JFile(dest)))
+		val source = new JFile(src)
+		val destination = new JFile(dest)
+		
+		val in = new ZipInputStream(new FileInputStream(source))
+		val out = new ZipOutputStream(new FileOutputStream(destination))
 		
 		var entry: ZipEntry = in.getNextEntry
 		
@@ -160,8 +164,11 @@ object RootScalaInstaller {
 	 */
 	private def repackJarRoot(src: String, dest: String, prefix: String) {
 		
-		val in = new ZipInputStream(new FileInputStream(new JFile(src)))
-		val out = new ZipOutputStream(new FileOutputStream(new JFile(dest)))
+		val source = new JFile(src)
+		val destination = new JFile(dest)
+		
+		val in = new ZipInputStream(new FileInputStream(source))
+		val out = new ZipOutputStream(new FileOutputStream(destination))
 		
 		var entry: ZipEntry = in.getNextEntry
 		
@@ -181,19 +188,6 @@ object RootScalaInstaller {
 		
 		in.close
 		out.close
-	}
-	
-	/**
-	 * Creates all the directories (as well as their hierarchical structures if they don't exist.
-	 * 
-	 * @param dirs the directories to create
-	 */
-	private def makeDirs(dirs: JFile*) {
-		for (dir <- dirs) {
-			if (!dir.exists) {
-				dir.mkdirs
-			}
-		}
 	}
 	
 	/**
@@ -243,150 +237,6 @@ object RootScalaInstaller {
 	}
 	
 	/**
-	 * Splits the scala library into multiple, smaller parts divided by root packages
-	 */
-	private def splitLibrary = (dxPath, dxOpts, proguardOptimizations, scalaVersion, streams) map { (dxPath, dxOpts, proguardOptimizations, version, streams) => 
-	
-		/**
-		 * Performs dexing on the input files, storing the result in the output file.
-		 * Dexing is not executed if all the input files are up to date in regatd to the output file.
-		 *
-		 * @param inputs the specified input files to be dexed
-		 * @param output the specified output location for writing the <code>.dex</code> file
-		 */
-		def dexing(inputs: Seq[JFile], output: JFile) = {
-			val upToDate = isUpToDate(inputs, output)
-
-			if (!upToDate) {
-				val noLocals =
-					if (proguardOptimizations.isEmpty) ""
-					else "--no-locals"
-
-				val dxCmd = (
-					Seq(dxPath.absolutePath,
-						dxMemoryParameter(dxOpts._1),
-						"--dex", noLocals,
-						"--num-threads="+java.lang.Runtime.getRuntime.availableProcessors,
-						"--output="+output.getAbsolutePath
-					) ++
-					inputs.map(_.absolutePath)
-				).filter(_.length > 0)
-
-				streams.log.debug(dxCmd.mkString(" "))
-				streams.log.info("[Development] Dexing "+output.getAbsolutePath)
-				streams.log.debug(dxCmd !!)
-			} else {
-				streams.log.debug("Dex file " + output.getAbsolutePath + " up to date, skipping...")
-			}
-		}
-	
-		val home = userHome
-		val scalaLibraryFile = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/scala-library.jar")
-		val scalaJarsDir = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/jars")
-		val scalaDexsDir = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/dexs")
-		val scalaXmlsDir = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/xmls")
-		val scalaLibsDir = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/libs")
-		
-		makeDirs(scalaJarsDir, scalaDexsDir, scalaXmlsDir, scalaLibsDir)
-		
-		val libraryPackages = getScalaLibraryPackages(scalaLibraryFile, version)
-		
-		val libraryPath = scalaLibraryFile.getAbsolutePath
-		
-		for (scalaPackage <- libraryPackages) {
-			if (scalaPackage.equals("scala")) {
-				val packagePath = new JFile(scalaJarsDir, "scala-root-" + version + ".jar").getAbsolutePath
-				repackJarRoot(libraryPath, packagePath, scalaPackage)
-				streams.log.info("[Development] Created " + "scala-root-" + version + ".jar")
-			} else if (scalaPackage.equals("scala/collection/immutable") || scalaPackage.equals("scala/collection/mutable")) {
-				val packagePath = new JFile(scalaJarsDir, "scala-" + scalaPackage.split("/")(1) + "-" + scalaPackage.split("/")(2) +"-" + version + ".jar").getAbsolutePath
-				repackJarPart(libraryPath, packagePath, scalaPackage)
-				streams.log.info("[Development] Created " + "scala-" + scalaPackage.split("/")(1) + "-" + scalaPackage.split("/")(2) +"-" + version + ".jar")
-			} else {
-				val packagePath = new JFile(scalaJarsDir, "scala-" + scalaPackage.split("/")(1) + "-" + version + ".jar").getAbsolutePath
-				repackJarCollection(libraryPath, packagePath, scalaPackage)
-				streams.log.info("[Development] Created " + "scala-" + scalaPackage.split("/")(1) + "-" + version + ".jar")
-			}
-		}
-		
-		for (file <- scalaJarsDir.listFiles) {
-			if (file.getName.endsWith(".jar")) {
-				dexing(Seq(file), new JFile(scalaDexsDir, file.getName.replace(".jar", ".dex")))
-				streams.log.info("[Development] Dexed " + file.getName.replace(".jar", ".dex"))
-			}
-		}
-		
-		for (file <- scalaDexsDir.listFiles) {
-			if (file.getName.endsWith(".dex")) {
-				repackDexIntoJar(file, new JFile(scalaLibsDir, file.getName.replace(".dex", ".jar")), version)
-				streams.log.info("[Development] Repacked " + file.getName.replace(".dex", ".jar"))
-			}
-		}
-		
-		// for (file <- scalaDexsDir.listFiles) {
-		for (file <- scalaLibsDir.listFiles) {
-			// if (file.getName.endsWith(".dex")) {
-			if (file.getName.endsWith(".jar")) {
-				permission(file, new JFile(scalaXmlsDir, file.getName.replace(".jar", ".xml")))
-				streams.log.info("[Development] Allowed " + file.getName.replace(".jar", ".xml"))
-			}
-		}
-	}
-	
-	private def repackDexIntoJar(dexFile: JFile, jarFile: JFile, version: String) = {
-		val home = userHome
-		val scalaLibsDir = new JFile(home + "/.sbt/boot/scala-" + version + "/lib/libs")
-		
-		val classesDexFile = new JFile(dexFile.getAbsolutePath.replace(dexFile.getName, "classes.dex"))
-		val classesLibFile = new JFile(scalaLibsDir, dexFile.getName.replace(".dex", ".jar"))
-		
-		val copyIn = new FileInputStream(dexFile)
-		val copyOut = new FileOutputStream(classesDexFile)
-		
-		val buffer = new Array[Byte](4096)
-		Iterator.continually(copyIn.read(buffer))
-				.takeWhile(_ != -1)
-				.foreach { copyOut.write(buffer, 0, _) }
-		copyIn.close
-		copyOut.close
-		
-		val unzipIn = new FileInputStream(classesDexFile)
-		val zipOut = new ZipOutputStream(new FileOutputStream(classesLibFile))
-		zipOut.putNextEntry(new ZipEntry(classesDexFile.getName))
-		Iterator.continually(unzipIn.read(buffer))
-				.takeWhile(_ != -1)
-				.foreach { zipOut.write(buffer, 0, _) }
-		zipOut.closeEntry
-		unzipIn.close
-		zipOut.close
-		
-		IO.delete(classesDexFile)
-	}
-	
-	/**
-	 * Writes an xml permission for the dex file to the xml file relative to the android project package.
-	 */
-	private def permission(dexFile: JFile, xmlFile: JFile) = {
-		val home = userHome
-		
-		if (!xmlFile.exists || !isUpToDate(Seq(dexFile), xmlFile)) {
-			val writer = new JPrintWriter(xmlFile)
-			
-			writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-			writer.println("")
-			writer.println("<permissions>")
-			writer.println("    <library")
-			writer.println("        name=\"" + dexFile.getName.replace(".jar", "") + "\"")
-			// writer.println("        name=\"" + dexFile.getName.replace(".dex", "") + "\"")
-			writer.println("        file=\"/data/data/" + mainPackage + "/files/" + dexFile.getName + "\"")
-			writer.println("    />")
-			writer.println("</permissions>")
-			
-			writer.close
-		}
-	}
-	
-	/**
 	 * Lists all the files in the given directory recursively.
 	 * 
 	 * @param f the directory to be inspected
@@ -399,23 +249,6 @@ object RootScalaInstaller {
 		} else {
 			Array[File]()
 		}
-	}
-	
-	/**
-	 * Finds the package name where Main Activity is located in
-	 *
-	 * @return the package name where Main Activity is located in
-	 */
-	def getPackageName: String = {
-		val projectFiles = recursiveListFiles(new File("."))
-		val manifestFile = projectFiles
-			.filter(f => f.getCanonicalPath.endsWith("AndroidManifest.xml"))
-			.toList.headOption
-			.getOrElse(throw new FileNotFoundException("Your project doesn't contain manifest"))
-
-		val manifestXML = scala.xml.XML.loadFile(manifestFile)
-		val pkg = manifestXML.attribute("package").getOrElse("")
-		pkg.asInstanceOf[scala.xml.Text].data
 	}
 	
 	/**
@@ -494,7 +327,6 @@ object RootScalaInstaller {
 								dbPath.getAbsolutePath, false, streams, 
 								"shell",
 								"rm -f",
-								// "/data/data/" + mainPackage + "/files/scala-*" + installedVersion + ".dex"
 								"/data/data/" + mainPackage + "/files/scala-*" + installedVersion + ".jar"
 							)
 							
@@ -509,24 +341,20 @@ object RootScalaInstaller {
 					
 					if (!installedVersions.contains(version)) {
 						streams.log.info("[Development] Pushing Scala library version: " + version + "...")
-						
-						// for (file <- scalaDexsDir.listFiles) {
-						// for (file <- scalaJarsDir.listFiles) {
 						for (file <- scalaLibsDir.listFiles) {
 							if (file.getName.endsWith(".jar")) {
 								adbTask(
 									dbPath.getAbsolutePath, false, streams, 
 									"push", 
-									// home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "lib" + sep + "dexs" + sep + file.getName, 
 									home + sep + ".sbt" + sep + "boot" + sep + "scala-" + version + sep + "lib" + sep + "libs" + sep + file.getName, 
-									"/data/data/" + mainPackage + "/files/" + file.getName
+									"/system/framework/" + file.getName
 								)
 								
 								adbTask(
 									dbPath.getAbsolutePath, false, streams, 
 									"shell",
 									"su -c",
-									"\"chmod 666 /data/data/" + mainPackage + "/files/" + file.getName + "\""
+									"\"chmod 666 /system/framework/" + file.getName + "\""
 								)
 							}
 						}
@@ -586,7 +414,7 @@ object RootScalaInstaller {
 					dbPath.getAbsolutePath, false, streams, 
 					"shell",
 					"rm -f",
-					"/data/data/" + mainPackage + "/files/scala-*" + installedVersion + ".jar"
+					"/system/framework/scala-*" + installedVersion + ".jar"
 				)
 				
 				adbTask(
@@ -622,13 +450,13 @@ object RootScalaInstaller {
 			val (exit, response) = adbTaskWithOutput(
 				dbPath.getAbsolutePath, false, streams, 
 				"shell",
-				"ls /data/data/" + mainPackage + "/files/scala-*.jar"
+				"ls /system/framework/scala-*.jar"
 			)
 			
 			if ((exit != 0) || (response.contains("Failure"))) {
 				streams.log.info("[Development] Error executing ADB.")
 				Seq.empty[String]
-			} else if (response.contains("No such file") || !response.contains("/data/data/" + mainPackage + "/files/scala-")) {
+			} else if (response.contains("No such file") || !response.contains("/system/framework/scala-")) {
 				streams.log.info("[Development] No Scala library detected on device")
 				Seq.empty[String]
 			} else {
@@ -636,7 +464,7 @@ object RootScalaInstaller {
 				val lines = response.split("\n")
 				
 				for (line <- lines) {
-					val v = line.split("/data/data/" + mainPackage + "/files/")(1).split("-").last.split(".jar")(0)
+					val v = line.split("/system/framework/")(1).split("-").last.split(".jar")(0)
 					versions = v +: versions 
 				}
 				
@@ -652,6 +480,321 @@ object RootScalaInstaller {
 	}
 	
 	/**
+	 * Finds the package name where Main Activity is located in.
+	 *
+	 * @return the package name where Main Activity is located in
+	 */
+	def getPackageName: Project.Initialize[Task[String]] = streams map { (streams) =>
+		val projectFiles = recursiveListFiles(new File("."))
+		val manifestFile = projectFiles
+			.filter(f => f.getCanonicalPath.endsWith("AndroidManifest.xml"))
+			.toList.headOption
+			.getOrElse(throw new FileNotFoundException("Your project doesn't contain manifest"))
+
+		val manifestXML = scala.xml.XML.loadFile(manifestFile)
+		val pkg = manifestXML.attribute("package").getOrElse("")
+		val packageName = pkg.asInstanceOf[scala.xml.Text].data
+		packageName
+	}
+	
+	/**
+	 * Returns the home directory of the current user.
+	 */
+	private def getHomeDirectory: Project.Initialize[Task[File]] = streams map { (streams) =>
+		val homeDirectory = new JFile(userHome)
+		homeDirectory
+	}
+	
+	/**
+	 * Returns the folder where scala library is located. The scala folder conforms to this format: <code>{HOME}/.sbt/boot/scala-{VERSION}/lib</code><br>
+	 * The home directory and scala version the current project is written in must be known for this task.<br>
+	 */
+	private def getScalaFolder: Project.Initialize[Task[File]] = (homeDirectory, scalaVersion) map { (homeDirectory, scalaVersion) =>
+		val scalaFolder = new JFile(homeDirectory + "/.sbt/boot/scala-" + scalaVersion + "/lib")
+		scalaFolder
+	}
+	
+	/**
+	 * Returns the file containing the path to the scala library jar file. The scala library file conforms to this format: <code>{HOME}/.sbt/boot/scala-{VERSION}/lib/scala-library.jar</code><br>
+	 * The version of the scala library is the one the current project is written in.<br>
+	 * Scala folder in <code>/.sbt/boot</code> directory must be known for this task.
+	 */		
+	private def getScalaLibraryFile: Project.Initialize[Task[File]] = scalaFolder map { (scalaFolder) =>
+		val scalaLibraryFile = new JFile(scalaFolder, "scala-library.jar")
+		scalaLibraryFile
+	}
+	
+	/**
+	 * Returns the directory where the parts of scala library are located after splitting.<br>
+	 * Scala folder in <code>/.sbt/boot</code> directory must be known for this task.
+	 */		
+	private def getScalaJarsDirectory: Project.Initialize[Task[File]] = scalaFolder map { (scalaFolder) =>
+		val scalaJarsDirectory = new JFile(scalaFolder, "jars")
+		scalaJarsDirectory
+	}
+	
+	/**
+	 * Returns the directory where the dexed parts of scala library are located.<br>
+	 * Scala folder in <code>/.sbt/boot</code> directory must be known for this task.
+	 */		
+	private def getScalaDexsDirectory: Project.Initialize[Task[File]] = scalaFolder map { (scalaFolder) =>
+		val scalaDexsDirectory = new JFile(scalaFolder, "dexs")
+		scalaDexsDirectory
+	}
+	
+	/**
+	 * Returns the directory where the xml permission files are located.<br>
+	 * Scala folder in <code>/.sbt/boot</code> directory> must be known for this task.
+	 */	
+	private def getScalaXmlsDirectory: Project.Initialize[Task[File]] = scalaFolder map { (scalaFolder) =>
+		val scalaXmlsDirectory = new JFile(scalaFolder, "xmls")
+		scalaXmlsDirectory
+	}
+	
+	/**
+	 * Returns the directory where the repacked jar files are located.<br>
+	 * Scala folder in <code>/.sbt/boot</code> directory must be known for this task.
+	 */
+	private def getScalaLibsDirectory: Project.Initialize[Task[File]] = scalaFolder map { (scalaFolder) =>
+		val scalaLibsDirectory = new JFile(scalaFolder, "libs")
+		scalaLibsDirectory
+	}
+	
+	/**
+	 * Creates the necessary directories which are used in preparation for pushing scala library as a shared library on the rooted device.<br>
+	 * <br>
+	 * The directories are as following<br>
+	 * <ul>
+	 *   <li>{HOME}/.sbt/boot/scala-{VERSION}/lib/jars - contains split scala library jars
+	 *   <li>{HOME}/.sbt/boot/scala-{VERSION}/lib/dexs - contains dexed parts of split scala library
+	 *   <li>{HOME}/.sbt/boot/scala-{VERSION}/lib/libs - contains repacked dex files
+	 *   <li>{HOME}/.sbt/boot/scala-{VERSION}/lib/xmls - contains android library permission files for repacked dex files
+	 * </ul>
+	 */
+	private def createScalaDirs = (scalaJarsDirectory, scalaDexsDirectory, scalaLibsDirectory, scalaXmlsDirectory) map { 
+	                              (scalaJarsDirectory, scalaDexsDirectory, scalaLibsDirectory, scalaXmlsDirectory) =>
+
+		def makeDirs(dirs: JFile*) {
+			for (dir <- dirs) {
+				if (!dir.exists) {
+					dir.mkdirs
+				}
+			}
+		}
+		
+		makeDirs(scalaJarsDirectory, scalaDexsDirectory, scalaLibsDirectory, scalaXmlsDirectory)
+	}
+	
+	/**
+	 * Splits the scala library located at <code>{HOME}/.sbt/boot/scala-{VERSION}/lib</code> directory into many smaller parts in regard to the subpackage.<br>
+	 * Since the <code>scala.collection</code> package of the library is too big for a single dex file, the <code>scala.collection</code> package is divided into<br>
+	 * three parts:<br>
+	 * <ul>
+	 *   <li><code>scala.collection.immutable</code> - contains only the classes in <code>scala.collection.immutable</code>
+	 *   <li><code>scala.collection.mutable</code> - contains only the classes in <code>scala.collection.mutable</code>
+	 *   <li><code>scala.collection</code> - contains the rest of the classes not in the previous two packages
+	 * </ul>
+	 */
+	private def splitScalaLibrary = (scalaVersion, streams, scalaLibraryFile, scalaJarsDirectory) map {
+	                                (scalaVersion, streams, scalaLibraryFile, scalaJarsDirectory) =>
+
+		val libraryPackages = getScalaLibraryPackages(scalaLibraryFile, scalaVersion)
+		val libraryPath = scalaLibraryFile.getAbsolutePath
+		
+		for (scalaPackage <- libraryPackages) {
+			if (scalaPackage.equals("scala")) {
+				val jarName = "scala-root-" + scalaVersion + ".jar"
+				val jarFile = new JFile(scalaJarsDirectory, jarName)
+				
+				if (jarFile.exists && isUpToDate(Seq(scalaLibraryFile), jarFile)) {
+					streams.log.info(jarFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					repackJarRoot(libraryPath, jarFile.getAbsolutePath, scalaPackage)
+					streams.log.info(scalaLibraryFile.getAbsolutePath + " => [SPLIT] => " + jarFile.getAbsolutePath)
+				}
+			} else if (scalaPackage.equals("scala/collection/immutable") || scalaPackage.equals("scala/collection/mutable")) {
+				val jarName = "scala-" + scalaPackage.split("/")(1) + "-" + scalaPackage.split("/")(2) +"-" + scalaVersion + ".jar"
+				val jarFile = new JFile(scalaJarsDirectory, jarName)
+				
+				if (jarFile.exists && isUpToDate(Seq(scalaLibraryFile), jarFile)) {
+					streams.log.info(jarFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					repackJarPart(libraryPath, jarFile.getAbsolutePath, scalaPackage)
+					streams.log.info(scalaLibraryFile.getAbsolutePath + " => [SPLIT] => " + jarFile.getAbsolutePath)
+				}
+			} else {
+				val jarName = "scala-" + scalaPackage.split("/")(1) + "-" + scalaVersion + ".jar"
+				val jarFile = new JFile(scalaJarsDirectory, jarName)
+				
+				if (jarFile.exists && isUpToDate(Seq(scalaLibraryFile), jarFile)) {
+					streams.log.info(jarFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					repackJarCollection(libraryPath, jarFile.getAbsolutePath, scalaPackage)
+					streams.log.info(scalaLibraryFile.getAbsolutePath + " => [SPLIT] => " + jarFile.getAbsolutePath)
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Creates a set of dex files which are compiled parts of scala library for Dalvik Virtual Machine.<br>
+	 * Each dex file corresponds to the jar file of the split scala library of the same name.<br>
+	 * <br>
+	 * If a dex file exists and it is up to date with the corresponding jar file in <code>/jars</code> directory, the new dex file is NOT generated.
+	 */
+	private def dexScalaLibrary = (dxPath, dxOpts, proguardOptimizations, scalaVersion, streams, scalaJarsDirectory, scalaDexsDirectory) map {
+	                              (dxPath, dxOpts, proguardOptimizations, scalaVersion, streams, scalaJarsDirectory, scalaDexsDirectory) =>
+
+		/**
+		 * Performs dexing on the input files, storing the result in the output file.
+		 * Dexing is not executed if all the input files are up to date in regatd to the output file.
+		 *
+		 * @param inputs the specified input files to be dexed
+		 * @param output the specified output location for writing the <code>.dex</code> file
+		 */
+		def dexing(inputs: Seq[JFile], output: JFile) = {
+			val upToDate = isUpToDate(inputs, output)
+
+			if (!upToDate) {
+				val noLocals =
+					if (proguardOptimizations.isEmpty) ""
+					else "--no-locals"
+
+				val dxCmd = (
+					Seq(dxPath.absolutePath,
+						dxMemoryParameter(dxOpts._1),
+						"--dex", noLocals,
+						"--num-threads="+java.lang.Runtime.getRuntime.availableProcessors,
+						"--output="+output.getAbsolutePath
+					) ++
+					inputs.map(_.absolutePath)
+				).filter(_.length > 0)
+
+				streams.log.debug(dxCmd.mkString(" "))
+				streams.log.debug(dxCmd !!)
+			} else {
+				streams.log.debug("Dex file " + output.getAbsolutePath + " up to date, skipping...")
+			}
+		}
+		
+		for (jarFile <- scalaJarsDirectory.listFiles) {
+			if (jarFile.getName.endsWith(".jar")) {
+				val dexFile = new JFile(scalaDexsDirectory, jarFile.getName.replace(".jar", ".dex"))
+				
+				if (dexFile.exists && isUpToDate(Seq(jarFile), dexFile)) {
+					streams.log.info(dexFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					dexing(Seq(jarFile), dexFile)
+					streams.log.info(jarFile.getAbsolutePath + " => [DEXER] => " + dexFile.getAbsolutePath)
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Creates a set of jar files which contain corresponding dexed parts of the scala library.<br>
+	 * Each repacked jar file contains corresponding dex file renamed to classes.dex.<br>
+	 * <br>
+	 * If a repacked library jar file exists and it is up to date with the corresponding dex file in <code>/dexs</code> directory, the new library jar file is NOT generated.
+	 */
+	private def repackScalaLibrary = (scalaVersion, streams, scalaDexsDirectory, scalaLibsDirectory) map {
+	                                 (scalaVersion, streams, scalaDexsDirectory, scalaLibsDirectory) =>
+
+		/**
+		 * Repacks dex file into a jar file.<br>
+		 * The created jar file will have the same name as the specified dex file, but the dex file inside jar file will be renamed to <code>classes.dex</code><br>
+		 *
+		 * @param dexFile the dex file to be packed in jar
+		 * @param libFile the jar file where the dex file will be packed into an android library
+		 */
+		def repackDexIntoJar(dexFile: JFile, libFile: JFile) = {			
+			val classesDexFile = new JFile(dexFile.getAbsolutePath.replace(dexFile.getName, "classes.dex"))
+			
+			val copyIn = new FileInputStream(dexFile)
+			val copyOut = new FileOutputStream(classesDexFile)
+			
+			val buffer = new Array[Byte](4096)
+			Iterator.continually(copyIn.read(buffer))
+					.takeWhile(_ != -1)
+					.foreach { copyOut.write(buffer, 0, _) }
+			copyIn.close
+			copyOut.close
+			
+			val unzipIn = new FileInputStream(classesDexFile)
+			val zipOut = new ZipOutputStream(new FileOutputStream(libFile))
+			zipOut.putNextEntry(new ZipEntry(classesDexFile.getName))
+			Iterator.continually(unzipIn.read(buffer))
+					.takeWhile(_ != -1)
+					.foreach { zipOut.write(buffer, 0, _) }
+			zipOut.closeEntry
+			unzipIn.close
+			zipOut.close
+			
+			IO.delete(classesDexFile)
+		}
+		
+		for (dexFile <- scalaDexsDirectory.listFiles) {
+			if (dexFile.getName.endsWith(".dex")) {
+				val libFile = new JFile(scalaLibsDirectory, dexFile.getName.replace(".dex", ".jar"))
+				
+				if (libFile.exists && isUpToDate(Seq(dexFile), libFile)) {
+					streams.log.info(libFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					repackDexIntoJar(dexFile, libFile)
+					streams.log.info(dexFile.getAbsolutePath + " => [REPACK] => " + libFile.getAbsolutePath)
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Creates a set of permissions for each part of the scala library to be pushed on the rooted device.<br>
+	 * <br>
+	 * Each permission is an XML file containing the name of the library part in the following format:<br>
+	 * <code>scala-{PACKAGE}-{VERSION}</code> pointing to scala library part located at 
+	 * <code>/system/framework/scala-{PACKAGE}-{VERSION}.jar</code><br>
+	 * <br>
+	 * If an permission file exists and it is up to date with the corresponding jar file in <code>/libs</code> directory, the new XML permission file is NOT generated.
+	 */
+	private def allowScalaLibrary = (scalaVersion, streams, scalaLibsDirectory, scalaXmlsDirectory) map {
+	                                (scalaVersion, streams, scalaLibsDirectory, scalaXmlsDirectory) =>
+
+		/**
+		 * Writes an xml permission for the dex file to the xml file relative to the android project package.
+		 *
+		 * @param libFile the specified library file
+		 * @param xmlFile the file with the permissions related to the libFile
+		 */
+		def permission(libFile: JFile, xmlFile: JFile) = {			
+			val writer = new JPrintWriter(xmlFile)
+			
+			writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+			writer.println("")
+			writer.println("<permissions>")
+			writer.println("    <library")
+			writer.println("        name=\"" + libFile.getName.replace(".jar", "") + "\"")
+			writer.println("        file=\"/system/framework/" + libFile.getName + "\"")
+			writer.println("    />")
+			writer.println("</permissions>")
+			
+			writer.close
+		}
+		
+		for (libFile <- scalaLibsDirectory.listFiles) {
+			if (libFile.getName.endsWith(".jar")) {
+				val xmlFile = new JFile(scalaXmlsDirectory, libFile.getName.replace(".jar", ".xml"))
+				
+				if (xmlFile.exists && isUpToDate(Seq(libFile), xmlFile)) {
+					streams.log.info(xmlFile.getAbsolutePath + " already exists and it is up to date.")
+				} else {
+					permission(libFile, xmlFile)
+					streams.log.info(libFile.getAbsolutePath + " => [PERMISSION] => " + xmlFile.getAbsolutePath)
+				}
+			}
+		}
+	}
+	
+	/**
 	 * Mappings of new Task Keys related to checking, pushing and removing Scala library on a rooted phone.<br>
 	 * <br>
 	 * <code>rootScalaVersion</code> simply calls <code>checkScala</code><br>
@@ -659,11 +802,25 @@ object RootScalaInstaller {
 	 * <code>rootScalaInstall</code> calls <code>pushScala</code> but depends on <code>rootScalaVersion</code><br>
 	 */
 	lazy val rootScalaSettings: Seq[Setting[_]] = inConfig(Android) (
-		Seq(
+		Seq(			
+			mainPackage <<= getPackageName,
+			homeDirectory <<= getHomeDirectory,
+			scalaFolder <<= getScalaFolder dependsOn homeDirectory,
+			scalaLibraryFile <<= getScalaLibraryFile dependsOn scalaFolder,
+			scalaJarsDirectory <<= getScalaJarsDirectory dependsOn scalaFolder,
+			scalaDexsDirectory <<= getScalaDexsDirectory dependsOn scalaFolder,
+			scalaLibsDirectory <<= getScalaLibsDirectory dependsOn scalaFolder,
+			scalaXmlsDirectory <<= getScalaXmlsDirectory dependsOn scalaFolder,
+			
+			rootScalaCreateDirectories <<= createScalaDirs dependsOn (scalaJarsDirectory, scalaDexsDirectory, scalaLibsDirectory, scalaXmlsDirectory),
+			rootScalaLibrarySplit <<= splitScalaLibrary dependsOn (scalaLibraryFile, rootScalaCreateDirectories),
+			rootScalaLibraryDex <<= dexScalaLibrary dependsOn rootScalaLibrarySplit,
+			rootScalaLibraryRepack <<= repackScalaLibrary dependsOn rootScalaLibraryDex,
+			rootScalaLibraryAllow <<= allowScalaLibrary dependsOn rootScalaLibraryRepack,
+			
 			rootScalaVersion <<= checkScala,
 			rootScalaUninstall <<= removeScala dependsOn rootScalaVersion,
-			rootScalaInstall <<= pushScala dependsOn rootScalaVersion,
-			rootScalaLibrarySplit <<= splitLibrary
+			rootScalaInstall <<= pushScala dependsOn (rootScalaVersion, rootScalaLibraryAllow)
 		)
 	)
 }
