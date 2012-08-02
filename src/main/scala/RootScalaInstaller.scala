@@ -327,7 +327,7 @@ object RootScalaInstaller {
 								dbPath.getAbsolutePath, false, streams, 
 								"shell",
 								"rm -f",
-								"/data/data/" + mainPackage + "/files/scala-*" + installedVersion + ".jar"
+								"/system/framework/scala-*" + installedVersion + ".jar"
 							)
 							
 							adbTask(
