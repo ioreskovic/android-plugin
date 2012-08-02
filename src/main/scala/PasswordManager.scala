@@ -156,3 +156,4 @@ object FilePasswordManager extends PWManager {
     } else false
   }
 }
+

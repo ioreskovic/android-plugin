@@ -159,3 +159,4 @@ object AndroidNdk {
     clean <<= clean.dependsOn(ndkClean in Android, javahClean in Android)
   )
 }
+

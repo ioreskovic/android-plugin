@@ -102,3 +102,4 @@ class ApkBuilder(project: ApkConfig, debug: Boolean) {
 
   def sealApk(builder: JApkBuilder) { klass.getMethod("sealApk").invoke(builder) }
 }
+

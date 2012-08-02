@@ -83,3 +83,4 @@ object AndroidHelpers {
   def manifest(mpath: File) = xml.XML.loadFile(mpath)
 
 }
+

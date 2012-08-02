@@ -61,3 +61,4 @@ object AndroidLaunch {
 	  devStartEmulator <<= devStartEmulator dependsOn devInstallEmulator
     ))
 }
+

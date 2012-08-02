@@ -437,3 +437,4 @@ object AndroidFastInstall {
     t => t <<= t dependsOn (devCleanApk, devAaptPackage, copyNativeLibraries)
   })
 }
+

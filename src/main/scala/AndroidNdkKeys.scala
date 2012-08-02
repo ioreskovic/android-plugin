@@ -35,3 +35,4 @@ object AndroidNdkKeys {
   val jniClasses = SettingKey[Seq[String]]("jni-classes",
       "Fully qualified names of classes with native methods for which JNI headers are to be generated.")
 }
+

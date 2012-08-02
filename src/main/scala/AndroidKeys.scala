@@ -249,3 +249,4 @@ object AndroidKeys {
   val cachePasswords = SettingKey[Boolean]("cache-passwords", "Cache passwords")
   val clearPasswords = TaskKey[Unit]("clear-passwords", "Clear cached passwords")
 }
+

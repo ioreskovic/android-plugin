@@ -66,3 +66,4 @@ object AndroidMarketPublish {
     signRelease <<= signRelease dependsOn packageRelease
   ))
 }
+

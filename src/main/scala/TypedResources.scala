@@ -121,3 +121,4 @@ object TypedResources {
     generateTypedResources <<= (generateTypedResources in Android)
   )
 }
+

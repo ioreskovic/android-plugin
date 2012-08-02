@@ -218,3 +218,4 @@ object AndroidInstall {
     t => t <<= t dependsOn (cleanApk, aaptPackage, copyNativeLibraries)
   })
 }
+

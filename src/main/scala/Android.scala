@@ -69,3 +69,4 @@ object AndroidProject extends Plugin {
       aggregate in _ := false
     }
 }
+
