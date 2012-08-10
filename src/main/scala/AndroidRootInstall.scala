@@ -36,19 +36,19 @@ import org.objectweb.asm.depend.DependencyLister
  * @author Ivan Oreskovic
  * @see <a href="https://github.com/ioreskovic/android-plugin">GitHub Repository</a>
  */
-object AndroidFastInstall {
+object AndroidRootInstall {
   
   var incrementAppOnly = false
   
-  private def devInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
+  private def rootInstallTask(emulator: Boolean) = (dbPath, packageApkPath, streams) map { (dp, p, s) =>
 	adbTask(dp.absolutePath, emulator, s, "install", "-r ", p.absolutePath)
   }
 
-  private def devUninstallTask(emulator: Boolean) = (dbPath, manifestPackage, streams) map { (dp, m, s) =>
+  private def rootUninstallTask(emulator: Boolean) = (dbPath, manifestPackage, streams) map { (dp, m, s) =>
     adbTask(dp.absolutePath, emulator, s, "uninstall", m)
   }
 
-  private def devAaptPackageTask: Project.Initialize[Task[File]] =
+  private def rootAaptPackageTask: Project.Initialize[Task[File]] =
   (aaptPath, manifestPath, mainResPath, mainAssetsPath, jarPath, resourcesApkPath, extractApkLibDependencies, streams) map {
     (apPath, manPath, rPath, assetPath, jPath, resApkPath, apklibs, s) =>
 
@@ -209,9 +209,9 @@ object AndroidFastInstall {
 	}	
   }
   
-  private def devDxTask: Project.Initialize[Task[File]] =
-    (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
-    (dxPath, devDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
+  private def rootDxTask: Project.Initialize[Task[File]] =
+    (dxPath, rootDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) map {
+    (dxPath, rootDxInputs, dxOpts, proguardOptimizations, classDirectory, classesDexPath, scalaInstance, streams, devDxSettings) =>
 	  
 	  /**
 	   * Performs dexing on the input files, storing the result in the output file.
@@ -254,11 +254,11 @@ object AndroidFastInstall {
 	  } else {
 		dxOpts._2 match {
         case None =>
-          dexing(filesToFinder(devDxInputs).get, classesDexPath)
+          dexing(filesToFinder(rootDxInputs).get, classesDexPath)
         case Some(predex) =>
           val (dexFiles, predexFiles) = predex match {
             case exceptSeq: Seq[_] if exceptSeq.nonEmpty =>
-              val (filtered, orig) = filesToFinder(devDxInputs).get.partition(file =>
+              val (filtered, orig) = filesToFinder(rootDxInputs).get.partition(file =>
               exceptSeq.exists(filter => {
                 streams.log.debug("apply filter \"" + filter + "\" to \"" + file.getAbsolutePath + "\"")
                 file.getAbsolutePath.matches(filter)
@@ -267,7 +267,7 @@ object AndroidFastInstall {
               (((classDirectory --- scalaInstance.libraryJar).get ++ filtered), orig)
             case _ =>
               // dex only classes directory, predex all other
-              ((classDirectory --- scalaInstance.libraryJar).get, (devDxInputs --- classDirectory).get)
+              ((classDirectory --- scalaInstance.libraryJar).get, (rootDxInputs --- classDirectory).get)
           }
           dexFiles.foreach(s => streams.log.debug("pack in dex \"" + s.getName + "\""))
           predexFiles.foreach(s => streams.log.debug("pack in predex \"" + s.getName + "\""))
@@ -293,150 +293,59 @@ object AndroidFastInstall {
     }
 	
   /**
-   * Runs ProGuard on all inputs, storing the result to the output file.
+   * Dummy ProGuard task for root-install-device
    */
-  private def devProguardTask: Project.Initialize[Task[Option[File]]] = 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) map { 
-	(useProguard, proguardOptimizations, classDirectory, proguardInJars, streams, libraryJarPath, manifestPackage, proguardOption, devPgSettings) =>
+  private def rootProguardTask: Project.Initialize[Task[Option[File]]] = 
+	(useProguard, streams) map { 
+	(useProguard, streams) =>
 
-	  val appDexPath = devPgSettings(0)
-	  val clsJarPath = devPgSettings(1)
-	  val clsDexPath = devPgSettings(2)
-	  
-	  var upToDate = isUpToDate(Seq(classDirectory), clsDexPath)
-	  
-	  if (appDexPath.exists) {
-		upToDate = upToDate && isUpToDate(Seq(classDirectory), appDexPath)
-	  }
-	  
-	  var keepArgs = "";
-	  
-	  if (useProguard && !upToDate) {
-		
-		if (clsJarPath.exists) {
-			var dl = new DependencyLister(clsJarPath.absolutePath)
-			var allDeps = asMutableScalaMultiMap(dl.getClassesMethods)
-			dl = new DependencyLister(classDirectory.absolutePath)
-			var deps = asMutableScalaMultiMap(dl.getClassesMethods)
-			
-			if (!isSubset(deps, allDeps)) {
-				allDeps = depsUnion(allDeps, deps)
-				keepArgs = getProGuardKeepArgs(allDeps)
-				incrementAppOnly = false
-				streams.log.info("[Development] New classes/methods detected. Trying to run ProGuard over entire project")
-			} else {
-				incrementAppOnly = true
-				streams.log.info("[Development] No new classes/methods detected. Trying to dex android-app classes only and merge with existing classes.dex")
-			}
-		
-		}
-		
-		if (incrementAppOnly == true) {
-			streams.log.info("[Development]	Skipping Proguard")
-			None
-		} else {
-		
-			if (!clsDexPath.exists) {
-				streams.log.info("[Development] First time build. Trying to run ProGuard over entire project")
-			}
-			
-			val optimizationOptions = if (proguardOptimizations.isEmpty) Seq("-dontoptimize") else proguardOptimizations
-			val manifestr = List("!META-INF/MANIFEST.MF", "R.class", "R$*.class", "TR.class", "TR$.class", "library.properties")
-			val sep = JFile.pathSeparator
-			val inJars = ("\"" + classDirectory.absolutePath + "\"") +: proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
-
-			val androidApplicationInput = Seq("\"" + classDirectory.absolutePath + "\"")
-			val scalaLibraryInput = proguardInJars.map("\"" + _ + "\""+manifestr.mkString("(", ",!**/", ")"))
-			
-			val args = (
-				"-injars" :: inJars.mkString(sep) ::
-				"-outjars" :: "\""+clsJarPath.absolutePath+"\"" ::
-				"-libraryjars" :: libraryJarPath.map("\""+_+"\"").mkString(sep) ::
-				Nil) ++
-				optimizationOptions ++ (
-				"-dontwarn" :: "-dontobfuscate" :: "-keeppackagenames **" ::
-				"-dontnote scala.Enumeration" ::
-				"-dontnote org.xml.sax.EntityResolver" ::
-				"-keep public class * extends android.app.Activity" ::
-				"-keep public class * extends android.app.Service" ::
-				"-keep public class * extends android.app.backup.BackupAgent" ::
-				"-keep public class * extends android.appwidget.AppWidgetProvider" ::
-				"-keep public class * extends android.content.BroadcastReceiver" ::
-				"-keep public class * extends android.content.ContentProvider" ::
-				"-keep public class * extends android.view.View" ::
-				"-keep public class * extends android.app.Application" ::
-				"-keep public class "+manifestPackage+".** { public protected *; }" ::
-				"-keep public class * implements junit.framework.Test { public void test*(); }" ::
-				"-keep class scala.Function1 { *; }" ::
-				"-keep class scala.ScalaObject { *; }" ::
-				"-keep class scala.collection.SeqLike { public protected *; }" ::
-				
-				"""
-				 -keepclassmembers class * implements java.io.Serializable {
-				   private static final java.io.ObjectStreamField[] serialPersistentFields;
-				   private void writeObject(java.io.ObjectOutputStream);
-				   private void readObject(java.io.ObjectInputStream);
-				   java.lang.Object writeReplace();
-				   java.lang.Object readResolve();
-				  }
-				  """ :: // keepArgs ::
-				proguardOption :: Nil )
-			
-			val config = new ProGuardConfiguration
-			new ConfigurationParser(args.toArray[String]).parse(config)
-			streams.log.debug("executing proguard: "+args.mkString("\n"))
-			new ProGuard(config).execute
-			Some(clsJarPath)
-		}
-	} else {
-		streams.log.info("[Development]	Skipping Proguard")
-		None
-	}
+	streams.log.info("[ROOT] Skipping ProGuard")
+	None
   }
 
-  private def devPackageTask(debug: Boolean):Project.Initialize[Task[File]] = (devPackageConfig, streams) map { (c, s) =>
+  private def rootPackageTask(debug: Boolean):Project.Initialize[Task[File]] = (rootPackageConfig, streams) map { (c, s) =>
     val builder = new ApkBuilder(c, debug)
     builder.build.fold(sys.error(_), s.log.info(_))
     s.log.debug(builder.outputStream.toString)
     c.packageApkPath
   }
   
-  lazy val devInstallerTasks = Seq (
-    devInstallDevice <<= devInstallTask(emulator = false) dependsOn devPackageDebug,
-	devInstallEmulator <<= devInstallTask(emulator = true) dependsOn devPackageDebug
+  lazy val rootInstallerTasks = Seq (
+    rootInstallDevice <<= rootInstallTask(emulator = false) dependsOn rootPackageDebug,
+	rootInstallEmulator <<= rootInstallTask(emulator = true) dependsOn rootPackageDebug
   )
 
-  lazy val devSettings: Seq[Setting[_]] = inConfig(Android) (devInstallerTasks ++ Seq (
-    devUninstallEmulator <<= devUninstallTask(emulator = true),
-    devUninstallDevice <<= devUninstallTask(emulator = false),
+  lazy val rootSettings: Seq[Setting[_]] = inConfig(Android) (rootInstallerTasks ++ Seq (
+    rootUninstallEmulator <<= rootUninstallTask(emulator = true),
+    rootUninstallDevice <<= rootUninstallTask(emulator = false),
 
-    devMakeAssetPath <<= directory(mainAssetsPath),
+    rootMakeAssetPath <<= directory(mainAssetsPath),
 
-    devAaptPackage <<= devAaptPackageTask,
-    devAaptPackage <<= devAaptPackage dependsOn (devMakeAssetPath, devDx),
-    devDx <<= devDxTask,
-    devDxInputs <<= (devProguard, proguardInJars, scalaInstance, classDirectory) map {
-      (devProguard, proguardInJars, scalaInstance, classDirectory) =>
-      devProguard match {
+    rootAaptPackage <<= rootAaptPackageTask,
+    rootAaptPackage <<= rootAaptPackage dependsOn (rootMakeAssetPath, rootDx),
+    rootDx <<= rootDxTask,
+    rootDxInputs <<= (rootProguard, proguardInJars, scalaInstance, classDirectory) map {
+      (rootProguard, proguardInJars, scalaInstance, classDirectory) =>
+      rootProguard match {
          case Some(file) => Seq(file)
          case None => (classDirectory +++ proguardInJars --- scalaInstance.libraryJar) get
       }
     },
 
-    devCleanApk <<= (packageApkPath) map (IO.delete(_)),
+    rootCleanApk <<= (packageApkPath) map (IO.delete(_)),
 
-    devProguard <<= devProguardTask,
-    devProguard <<= devProguard dependsOn (compile in Compile),
+    rootProguard <<= rootProguardTask,
+    rootProguard <<= rootProguard dependsOn (compile in Compile),
 
-    devPackageConfig <<=
+    rootPackageConfig <<=
       (toolsPath, packageApkPath, resourcesApkPath, classesDexPath,
-       nativeLibrariesPath, managedNativePath, devDxInputs, resourceDirectory) map
+       nativeLibrariesPath, managedNativePath, rootDxInputs, resourceDirectory) map
       (ApkConfig(_, _, _, _, _, _, _, _)),
 
-    devPackageDebug <<= devPackageTask(true),
-    devPackageRelease <<= devPackageTask(false)
-  ) ++ Seq(devPackageDebug, devPackageRelease).map {
-    t => t <<= t dependsOn (devCleanApk, devAaptPackage, copyNativeLibraries)
+    rootPackageDebug <<= rootPackageTask(true),
+    rootPackageRelease <<= rootPackageTask(false)
+  ) ++ Seq(rootPackageDebug, rootPackageRelease).map {
+    t => t <<= t dependsOn (rootCleanApk, rootAaptPackage, copyNativeLibraries)
   })
 }
 

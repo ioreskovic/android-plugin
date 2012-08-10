@@ -23,6 +23,15 @@ object AndroidLaunch {
               "shell", "am", "start", "-a", "android.intent.action.MAIN",
               "-n", mPackage+"/"+launcherActivity(schema, amPath.head, mPackage))
   }
+  
+  private def rootStartTask(emulator: Boolean) =
+    (dbPath, manifestSchema, manifestPackage, manifestPath, streams) map {
+      (dp, schema, mPackage, amPath, s) =>
+      adbTask(dp.absolutePath,
+              emulator, s,
+              "shell", "am", "start", "-a", "android.intent.action.MAIN",
+              "-n", mPackage+"/"+launcherActivity(schema, amPath.head, mPackage))
+  }
 
   private def launcherActivity(schema: String, amPath: File, mPackage: String) = {
     val launcher = for (
@@ -60,5 +69,17 @@ object AndroidLaunch {
 	  devStartDevice <<= devStartDevice dependsOn devInstallDevice,
 	  devStartEmulator <<= devStartEmulator dependsOn devInstallEmulator
     ))
+	
+  /** Settings from AndroidFastInstall.scala */
+  lazy val rootSettings: Seq[Setting[_]] =
+    AndroidRootInstall.rootSettings ++
+    inConfig(Android) (Seq (
+	  rootStartDevice <<= rootStartTask(false),
+	  rootStartEmulator <<= rootStartTask(true),
+	  
+	  rootStartDevice <<= rootStartDevice dependsOn rootInstallDevice,
+	  rootStartEmulator <<= rootStartEmulator dependsOn rootInstallEmulator
+    ))
+	
 }
 

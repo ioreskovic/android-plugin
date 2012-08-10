@@ -151,6 +151,7 @@ object AndroidInstall {
 				 /* Added Function1 and ScalaObject to support AndroidFastInstall.scala tasks */
 				 "-keep class scala.Function1 { *; }" ::
 				"-keep class scala.ScalaObject { *; }" ::
+				"-keep class scala.collection.SeqLike { public protected *; }" ::
 				
                  """
                   -keepclassmembers class * implements java.io.Serializable {

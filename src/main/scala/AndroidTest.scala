@@ -69,6 +69,7 @@ object AndroidTest {
     AndroidBase.settings ++
     AndroidInstall.settings ++
 	AndroidFastInstall.devSettings ++
+	AndroidRootInstall.rootSettings ++
     inConfig(Android) (Seq (
       testRunner   <<= detectTestRunnerTask,
       testEmulator <<= instrumentationTestAction(true),

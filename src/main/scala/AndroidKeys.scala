@@ -128,6 +128,25 @@ object AndroidKeys {
   val devUninstallDevice = TaskKey[Unit]("dev-uninstall-device")
   
   /**
+   * ROOT
+   */
+  val rootInstallDevice = TaskKey[Unit]("root-install-device")
+  val rootDxInputs = TaskKey[Seq[File]]("root-dx-inputs", "Input for dex command")
+  val rootProguard = TaskKey[Option[File]]("root-proguard", "Optimize class files.")
+  val rootPackageConfig = TaskKey[ApkConfig]("root-package-config", "Generates a Apk Config")
+  val rootPackageDebug = TaskKey[File]("root-package-debug", "Package and sign with a debug key.")
+  val rootPackageRelease = TaskKey[File]("root-package-release", "Package without signing.")
+  val rootMakeAssetPath = TaskKey[Unit]("root-make-assest-path")
+  val rootAaptPackage = TaskKey[File]("root-aapt-package", "Package resources and assets.")
+  val rootDx = TaskKey[File]("root-dx", "Convert class files to dex files")
+  val rootInstallEmulator = TaskKey[Unit]("root-install-emulator")
+  val rootUninstallEmulator = TaskKey[Unit]("root-uninstall-emulator")
+  val rootUninstallDevice = TaskKey[Unit]("root-uninstall-device")
+  val rootCleanApk = TaskKey[Unit]("root-clean-apk", "Remove apk package")
+  val rootStartDevice = TaskKey[Unit]("root-start-device", "Start package on device after installation")
+  val rootStartEmulator = TaskKey[Unit]("root-start-emulator", "Start package on emulator after installation")
+  
+  /**
    * Keys for installing, uninstalling and checking the version of Scala library on rooted phones
    */
   val rootScalaInstall = TaskKey[Unit]("root-scala-install")

@@ -48,6 +48,7 @@ object AndroidProject extends Plugin {
     AndroidLaunch.settings ++
     AndroidDdm.settings ++
 	AndroidLaunch.devSettings ++
+	AndroidLaunch.rootSettings ++
 	RootScalaInstaller.rootScalaSettings
 
   // Android path and defaults can load for every project
