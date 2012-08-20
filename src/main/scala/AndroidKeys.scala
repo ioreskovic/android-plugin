@@ -159,15 +159,6 @@ object AndroidKeys {
   val rootScalaLibraryAllow = TaskKey[Unit]("root-scala-library-allow")
   val rootScalaCreateDirectories = TaskKey[Unit]("root-scala-create-directories")
   
-  // val mainPackage = SettingKey[String]("main-package")
-  // val homeDirectory = SettingKey[File]("home-directory")
-  // val scalaFolder = SettingKey[File]("scala-folder")
-  // val scalaLibraryFile = SettingKey[File]("scala-library-file")
-  // val scalaJarsDirectory = SettingKey[File]("scala-jars-directory")
-  // val scalaDexsDirectory = SettingKey[File]("scala-dexs-directory")
-  // val scalaXmlsDirectory = SettingKey[File]("scala-xmls-directory")
-  // val scalaLibsDirectory = SettingKey[File]("scala-libs-directory")
-  
   val mainPackage = TaskKey[String]("main-package")
   val homeDirectory = TaskKey[File]("home-directory")
   val scalaFolder = TaskKey[File]("scala-folder")

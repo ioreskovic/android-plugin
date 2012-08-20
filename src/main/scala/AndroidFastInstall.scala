@@ -379,7 +379,7 @@ object AndroidFastInstall {
 				   java.lang.Object writeReplace();
 				   java.lang.Object readResolve();
 				  }
-				  """ :: // keepArgs ::
+				  """ :: keepArgs ::
 				proguardOption :: Nil )
 			
 			val config = new ProGuardConfiguration
